@@ -40,7 +40,7 @@ export function ThreadView({
   const { nodes, currentId } = useMemo(() => {
     if (!trail) return { nodes: [] as TrailNode[], currentId: null as string | null };
     const ids = new Set(trail.nodes.map((n: TrailNode) => n.receiptId));
-    const cur = path.find((p: string) => ids.has(p)) ?? trail.start;
+    const cur = [...path].reverse().find((p: string) => ids.has(p)) ?? trail.start;
     return { nodes: trail.nodes, currentId: cur };
   }, [trail, path]);
 
@@ -85,6 +85,117 @@ export function ThreadView({
           </p>
         </div>
 
+        {/* SVG/CSS Connection Trail Diagram */}
+        <div
+          className="connection-diagram-wrap"
+          style={{
+            marginTop: "1.5rem",
+            padding: "1rem 1.25rem",
+            background: "var(--stock-raised)",
+            border: "1px solid var(--rule)",
+            boxShadow: "var(--shadow-sm)",
+          }}
+        >
+          <div
+            className="t-label"
+            style={{
+              marginBottom: "0.75rem",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "0.5rem",
+            }}
+          >
+            <span>Connection Diagram · Clue Sequence</span>
+            <span className="t-label-teal">{nodes.length} connected moments</span>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              overflowX: "auto",
+              paddingBottom: "0.5rem",
+              gap: "0.4rem",
+            }}
+          >
+            {nodes.map((n: TrailNode, i: number) => {
+              const isCur = n.receiptId === currentId;
+              const isDone = i < idx;
+              const next = i + 1 < nodes.length ? nodes[i + 1] : null;
+              return (
+                <Fragment key={`diag-${n.receiptId}`}>
+                  <button
+                    onClick={() => onJump(n.receiptId)}
+                    style={{
+                      flex: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.45rem",
+                      padding: "0.35rem 0.65rem",
+                      background: isCur ? "var(--direct-bg)" : isDone ? "var(--stock-sunk)" : "var(--stock)",
+                      border: `1px solid ${isCur ? "var(--teal-700)" : "var(--rule-strong)"}`,
+                      boxShadow: isCur ? "var(--shadow-sm), inset 0 0 0 1px var(--teal-700)" : "none",
+                      cursor: "pointer",
+                    }}
+                    aria-label={`Jump to clue ${i + 1}: ${n.clue}`}
+                    aria-current={isCur ? "step" : undefined}
+                  >
+                    <span
+                      style={{
+                        width: "8px",
+                        height: "8px",
+                        background: isCur ? "var(--teal-700)" : isDone ? "var(--teal-500)" : "var(--ink-300)",
+                        borderRadius: "50%",
+                        display: "inline-block",
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "0.75rem",
+                        fontWeight: isCur ? 700 : 500,
+                        color: isCur ? "var(--teal-900)" : "var(--ink-800)",
+                      }}
+                    >
+                      {String(i + 1).padStart(2, "0")} · {n.receiptId}
+                    </span>
+                  </button>
+
+                  {next && (
+                    <div
+                      style={{
+                        flex: "none",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.2rem",
+                        padding: "0 0.2rem",
+                      }}
+                    >
+                      <svg width="24" height="12" viewBox="0 0 24 12" style={{ display: "block" }}>
+                        <line
+                          x1="0"
+                          y1="6"
+                          x2="20"
+                          y2="6"
+                          stroke={i < idx ? "var(--teal-700)" : "var(--rule-ink)"}
+                          strokeWidth="2"
+                          strokeDasharray={next.rule === "temporal+theme" || next.rule === "co-occurrence" ? "3 3" : undefined}
+                        />
+                        <polygon
+                          points="18,3 24,6 18,9"
+                          fill={i < idx ? "var(--teal-700)" : "var(--rule-ink)"}
+                        />
+                      </svg>
+                    </div>
+                  )}
+                </Fragment>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="workspace">
           {/* ---------------- clue rail ---------------- */}
           <div>
@@ -113,7 +224,7 @@ export function ThreadView({
                 );
               })}
               <span style={{ flex: 1 }} />
-              <button className="btn btn-ghost btn-sm" onClick={onBack} disabled={path.length <= 1}>
+              <button className="btn btn-ghost btn-sm" onClick={onBack} disabled={path.length === 0}>
                 ← Back
               </button>
               <button
@@ -273,10 +384,22 @@ export function ThreadView({
                       )}
                       <dt>Amount</dt>
                       <dd className="t-data">
-                        {fmtMoney(current.transaction.amount)} {current.transaction.currency}
+                        {fmtMoney(current.transaction.amount)}
                       </dd>
                       <dt>Mode</dt>
                       <dd>{current.transaction.mode}</dd>
+                      {current.transaction.flow && (
+                        <>
+                          <dt>Flow</dt>
+                          <dd>{current.transaction.flow}</dd>
+                        </>
+                      )}
+                      {current.transaction.note && (
+                        <>
+                          <dt>Note</dt>
+                          <dd>{current.transaction.note}</dd>
+                        </>
+                      )}
                     </>
                   )}
                 </dl>
@@ -288,15 +411,21 @@ export function ThreadView({
                       className="trail-node"
                       style={{ marginTop: "0.55rem" }}
                       onClick={() => onJump(nextNode.receiptId)}
+                      aria-label={`Advance to next clue: ${nextNode.clue}`}
                     >
                       <span className="trail-dot" aria-hidden="true" />
                       <span>
-                        <span style={{ display: "block", fontSize: "0.9rem" }}>
+                        <span style={{ display: "block", fontSize: "0.92rem", fontWeight: 600 }}>
                           {nextNode.clue}
                         </span>
                         <span
-                          className="row-sub"
-                          style={{ display: "block", marginTop: "0.15rem" }}
+                          style={{
+                            display: "block",
+                            marginTop: "0.25rem",
+                            fontSize: "0.82rem",
+                            color: "var(--text-muted)",
+                            lineHeight: 1.45,
+                          }}
                         >
                           {nextNode.why}
                         </span>

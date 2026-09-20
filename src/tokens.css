@@ -71,7 +71,7 @@
   --text-headline: var(--ink-900);
   --text-body: var(--ink-800);
   --text-muted: var(--ink-500);
-  --text-subtle: var(--ink-400);
+  --text-subtle: #5a544b;
   --text-accent: var(--teal-700);
 
   /* --- rhythm --- */

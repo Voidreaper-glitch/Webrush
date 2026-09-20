@@ -24,29 +24,62 @@ interface Props {
   onOpenRelated: (id: string) => void;
 }
 
+function labelForRule(rule: Edge["rule"]): string {
+  switch (rule) {
+    case "same-artist":
+      return "Same artist";
+    case "same-album":
+      return "Same album";
+    case "same-platform":
+      return "Same device";
+    case "same-subcategory":
+      return "Same subcategory";
+    case "same-venue":
+      return "Same venue";
+    case "same-language-strand":
+      return "Shared language strand";
+    case "temporal+theme":
+      return "Close in time + shared theme";
+    case "co-occurrence":
+      return "Same chapter window";
+    case "device-shift":
+      return "Device change";
+    default:
+      return rule;
+  }
+}
+
 export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props) {
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  // Scroll to top whenever receipt changes
+  useEffect(() => {
+    if (panelRef.current) {
+      panelRef.current.scrollTop = 0;
+    }
+  }, [receipt.id]);
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    const el = panelRef.current;
-    if (el) {
-      const target = el.querySelector<HTMLElement>("[data-autofocus]") ?? el;
-      target.focus();
+    if (closeBtnRef.current) {
+      closeBtnRef.current.focus();
     }
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
         onClose();
-      } else if (e.key === "Tab" && el) {
-        const f = Array.from(
+      } else if (e.key === "Tab" && panelRef.current) {
+        const el = panelRef.current;
+        const focusable = Array.from(
           el.querySelectorAll<HTMLElement>(
             'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
           )
-        ).filter((n) => !n.hasAttribute("disabled") && n.offsetParent !== null);
-        if (!f.length) return;
-        const first = f[0];
-        const last = f[f.length - 1];
+        ).filter((n) => !n.hasAttribute("disabled"));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
         if (e.shiftKey && document.activeElement === first) {
           e.preventDefault();
           last.focus();
@@ -56,6 +89,7 @@ export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props
         }
       }
     };
+
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => {
@@ -68,6 +102,7 @@ export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props
   const rels = edgesFor(archive, receipt.id);
   const m = receipt.music;
   const t = receipt.transaction;
+  const sourceName = receipt.source === "spotify" ? "Spotify" : "Household";
 
   return (
     <div
@@ -75,6 +110,7 @@ export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
+      role="presentation"
     >
       <div
         className="modal"
@@ -83,23 +119,27 @@ export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props
         aria-labelledby="receipt-modal-title"
         ref={panelRef}
         tabIndex={-1}
-        data-autofocus
       >
         <div className="modal-head">
           <div>
             <div className="t-label">
-              {KIND_LABEL_SINGULAR[receipt.kind]} · {receipt.source} archive
+              {KIND_LABEL_SINGULAR[receipt.kind]} · {sourceName} Archive
             </div>
             <h2 id="receipt-modal-title" className="t-h3" style={{ marginTop: "0.35rem" }}>
               {receipt.title}
             </h2>
             {receipt.subtitle && (
-              <div className="row-sub" style={{ marginTop: "0.25rem" }}>
+              <div className="row-sub" style={{ marginTop: "0.25rem", whiteSpace: "normal" }}>
                 {receipt.subtitle}
               </div>
             )}
           </div>
-          <button className="x-btn" onClick={onClose} aria-label="Close receipt detail">
+          <button
+            ref={closeBtnRef}
+            className="x-btn"
+            onClick={onClose}
+            aria-label="Close receipt detail"
+          >
             <span aria-hidden="true">✕</span>
           </button>
         </div>
@@ -146,7 +186,7 @@ export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props
                 )}
                 <dt>Amount</dt>
                 <dd className="t-data">
-                  {fmtMoney(t.amount)} {t.currency}
+                  {fmtMoney(t.amount)}
                 </dd>
                 <dt>Flow</dt>
                 <dd>{t.flow || "—"}</dd>
@@ -170,7 +210,7 @@ export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props
           </dl>
 
           <div style={{ marginTop: "1.6rem" }}>
-            <div className="t-label">Supported connections</div>
+            <div className="t-label">Supported connections ({rels.length})</div>
             {rels.length === 0 ? (
               <p className="t-body" style={{ marginTop: "0.55rem", color: "var(--text-muted)" }}>
                 No connection from this record is supported by the data. That is a
@@ -190,14 +230,14 @@ export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props
                       >
                         <span className="trail-dot" aria-hidden="true" />
                         <span>
-                          <span className="t-data" style={{ fontSize: "0.66rem", color: "var(--text-subtle)" }}>
+                          <span className="t-data" style={{ fontSize: "0.72rem", color: "var(--text-subtle)" }}>
                             {other.id} · {dateLabel(other.ts)}
                           </span>
-                          <span style={{ display: "block", fontSize: "0.9rem" }}>
+                          <span style={{ display: "block", fontSize: "0.92rem", fontWeight: 600 }}>
                             {other.title}
                           </span>
-                          <span className="badge" data-strength={e.strength} style={{ marginTop: "0.3rem" }}>
-                            {e.rule} · {e.strength}
+                          <span className="badge" data-strength={e.strength} style={{ marginTop: "0.35rem" }}>
+                            {labelForRule(e.rule)} · {e.strength}
                           </span>
                         </span>
                       </button>
@@ -212,5 +252,3 @@ export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props
     </div>
   );
 }
-
-

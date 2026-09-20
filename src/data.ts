@@ -18,9 +18,43 @@ import type {
   Story,
   TransactionDetail,
 } from "./types";
+import storyData from "./storyData.json";
+import trailReceiptsMap from "./trailReceipts.json";
 
 export const ARCHIVE_URL = "./data/receipts.json";
 export const STORY_URL = "./data/story.json";
+
+export function getInitialArchive(): Archive {
+  const byId = new Map<string, Receipt>();
+  const seedReceipts = Object.values(trailReceiptsMap) as unknown as Receipt[];
+  for (const r of seedReceipts) byId.set(r.id, r);
+
+  const story = storyData as unknown as Story;
+  return {
+    receipts: seedReceipts,
+    chapters: story.chapters,
+    edges: story.edges,
+    story,
+    byId,
+    totals: {
+      spotify: 149860,
+      household: 2461,
+      all: 152321,
+    },
+    sources: {
+      spotify: {
+        file: "spotify_listening_history.csv",
+        rows: 149860,
+        idPrefix: "SP-",
+      },
+      household: {
+        file: "Household_monthly_expenditure_dataset.csv",
+        rows: 2461,
+        idPrefix: "HH-",
+      },
+    },
+  };
+}
 
 export interface Archive {
   receipts: Receipt[];
@@ -184,17 +218,18 @@ export function expandBundle(bundle: ArchiveBundle): Receipt[] {
   return out;
 }
 
-/** Load both bundles and build the lookup index. */
-export async function loadArchive(): Promise<Archive> {
-  const [bundleRes, storyRes] = await Promise.all([
-    fetch(ARCHIVE_URL),
-    fetch(STORY_URL),
-  ]);
+export async function loadStory(): Promise<Story> {
+  const res = await fetch(STORY_URL);
+  if (!res.ok) throw new Error(`story load failed: ${res.status}`);
+  return (await res.json()) as Story;
+}
+
+export async function loadArchive(cachedStory?: Story): Promise<Archive> {
+  const story = cachedStory || (storyData as unknown as Story);
+  const bundleRes = await fetch(ARCHIVE_URL);
   if (!bundleRes.ok) throw new Error(`archive load failed: ${bundleRes.status}`);
-  if (!storyRes.ok) throw new Error(`story load failed: ${storyRes.status}`);
 
   const bundle = (await bundleRes.json()) as ArchiveBundle;
-  const story = (await storyRes.json()) as Story;
 
   const receipts = expandBundle(bundle);
   const byId = new Map<string, Receipt>();
@@ -220,6 +255,7 @@ export async function loadArchive(): Promise<Archive> {
 export function dateLabel(ts: number): string {
   if (!ts || ts < 0) return "Undated";
   return new Date(ts * 1000).toLocaleDateString("en-GB", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -231,12 +267,19 @@ export function dateTimeLabel(ts: number): string {
   const d = new Date(ts * 1000);
   return (
     d.toLocaleDateString("en-GB", {
+      timeZone: "UTC",
       day: "2-digit",
       month: "short",
       year: "numeric",
     }) +
     " · " +
-    d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    d.toLocaleTimeString("en-GB", {
+      timeZone: "UTC",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }) +
+    " UTC"
   );
 }
 
@@ -246,7 +289,10 @@ export function durationLabel(ms: number): string {
   if (s < 60) return s + "s";
   const m = Math.floor(s / 60);
   const r = s % 60;
-  return r ? `${m}m ${r}s` : `${m}m`;
+  if (m < 60) return r ? `${m}m ${r}s` : `${m}m`;
+  const h = Math.floor(m / 60);
+  const remM = m % 60;
+  return `${h}h ${remM}m`;
 }
 
 export function hoursLabel(h: number): string {
@@ -258,3 +304,4 @@ export function pctLabel(p: number): string {
 }
 
 export { fmtMoney };
+

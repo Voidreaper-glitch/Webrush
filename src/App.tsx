@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReceiptKind } from "./types";
 import type { Archive } from "./data";
-import { loadArchive } from "./data";
+import { getInitialArchive, loadArchive } from "./data";
 import { ChapterAtlas } from "./components/ChapterAtlas";
 import { ThreadView } from "./components/ThreadView";
 import { Explorer } from "./components/Explorer";
@@ -19,17 +19,22 @@ import { ReceiptModal } from "./components/ReceiptModal";
 type View = "atlas" | "thread" | "explorer";
 
 export function App() {
-  const [archive, setArchive] = useState<Archive | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [archive, setArchive] = useState<Archive>(getInitialArchive);
+  const [isArchiveLoaded, setIsArchiveLoaded] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    loadArchive()
+    loadArchive(archive.story)
       .then((a) => {
-        if (alive) setArchive(a);
+        if (alive) {
+          setArchive(a);
+          setIsArchiveLoaded(true);
+        }
       })
       .catch((e) => {
-        if (alive) setError(e instanceof Error ? e.message : String(e));
+        if (alive) {
+          console.warn("Background load warning:", e);
+        }
       });
     return () => {
       alive = false;
@@ -50,7 +55,10 @@ export function App() {
       setPath([]);
       setScope(id);
       setView("thread");
-      document.getElementById("thread")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        document.getElementById("thread")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     },
     []
   );
@@ -86,39 +94,6 @@ export function App() {
   );
 
   const open = openId && archive ? archive.byId.get(openId) : null;
-
-  if (!archive && !error) {
-    return (
-      <div className="load-state">
-        <div>
-          <div className="t-h3">Reading 152,321 receipts…</div>
-          <div className="t-label">Expanding the normalized archive</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="error-state">
-        <div className="shell" style={{ textAlign: "center" }}>
-          <div className="t-label" style={{ marginBottom: "0.8rem" }}>
-            Archive unavailable
-          </div>
-          <h1 className="t-h2">The receipt archive could not be loaded.</h1>
-          <p className="t-lead" style={{ margin: "1rem auto" }}>
-            {error}
-          </p>
-          <p className="t-body" style={{ margin: "0 auto", color: "var(--text-muted)" }}>
-            The static data bundle ships with this build; a network failure here
-            usually means the files were not served alongside the page.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!archive) return null;
 
   return (
     <div className="app">
@@ -204,6 +179,7 @@ export function App() {
           <div className="view" key="explorer">
             <Explorer
               archive={archive}
+              isArchiveLoaded={isArchiveLoaded}
               query={query}
               kinds={kinds}
               chapterScope={scope}
@@ -250,8 +226,7 @@ function Hero({
   onExplore: () => void;
 }) {
   const first = useMemo(() => {
-    const sp = archive.receipts.find((r) => r.source === "spotify");
-    return sp;
+    return archive.byId.get("SP-000001") || archive.receipts.find((r) => r.source === "spotify");
   }, [archive]);
 
   return (

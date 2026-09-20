@@ -62,6 +62,27 @@ export function ChapterAtlas({ archive, activeChapter, onPick }: Props) {
   );
 }
 
+const CHAPTER_BRIDGES = [
+  {
+    from: "ch1",
+    to: "ch2",
+    label: "Ch 1 → 2: Beatles motif (715 → 4,569 plays)",
+    motif: "The Beatles link Chapter 1 and Chapter 2: 715 plays in browsing years expanding to 4,569 plays in the regime.",
+  },
+  {
+    from: "ch2",
+    to: "ch3",
+    label: "Ch 2 → 3: The Killers surge (1,650 → 3,065 plays)",
+    motif: "The Killers link Chapter 2 and Chapter 3: rising from 1,650 plays in the regime to 3,065 plays across lockdown.",
+  },
+  {
+    from: "ch3",
+    to: "ch4",
+    label: "Ch 3 → 4: Spanish songwriting strand (2,294 plays)",
+    motif: "Repertoire shifts as 2,294 Spanish-language plays across six artists enter the library permanently.",
+  },
+];
+
 function Ribbon({
   chapters,
   active,
@@ -75,9 +96,9 @@ function Ribbon({
   const pos = (t: number) => ((t - MIN_DATE) / span) * 100;
 
   const W = 1000;
-  const H = 78;
-  const trackY = 38;
-  const barH = 22;
+  const H = 84;
+  const trackY = 36;
+  const barH = 24;
 
   return (
     <div className="ribbon-wrap">
@@ -87,11 +108,12 @@ function Ribbon({
           marginBottom: "0.6rem",
           display: "flex",
           justifyContent: "space-between",
-          gap: "1rem",
+          flexWrap: "wrap",
+          gap: "0.5rem 1rem",
         }}
       >
         <span>2013 — 2024 · select a span to open its chapter</span>
-        <span className="t-label-teal">{chapters.length} chapters</span>
+        <span className="t-label-teal">{chapters.length} evidence-backed chapters</span>
       </div>
 
       <svg
@@ -123,8 +145,8 @@ function Ribbon({
                 width={Math.max(w - 3, 5)}
                 height={barH}
                 fill={isActive ? "var(--teal-700)" : "var(--teal-400)"}
-                opacity={isActive ? 1 : 0.5}
-                rx="1"
+                opacity={isActive ? 1 : 0.55}
+                rx="2"
                 onClick={() => onPick(c.id)}
                 tabIndex={0}
                 role="button"
@@ -138,19 +160,66 @@ function Ribbon({
               />
               <text
                 x={x + 5}
-                y={trackY - 9}
-                fontSize="9.5"
+                y={trackY - 8}
+                fontSize="11"
                 fill="var(--text-subtle)"
-                style={{ fontFamily: "var(--font-mono)" }}
+                style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}
               >
-                {String(i + 1).padStart(2, "0")}
+                {String(i + 1).padStart(2, "0")} · {c.title}
               </text>
             </g>
           );
         })}
       </svg>
 
-      {/* Accessible equivalent of the graphic above. */}
+      {/* Cross-chapter recurring motifs that link adjacent chapters */}
+      <div style={{ marginTop: "1rem", paddingTop: "0.85rem", borderTop: "1px solid var(--rule-hair)" }}>
+        <div className="t-label" style={{ marginBottom: "0.45rem" }}>
+          Recurring motifs connecting chapters
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem" }}>
+          {CHAPTER_BRIDGES.map((b) => (
+            <span key={b.from} className="chip" data-kind="music" title={b.motif}>
+              {b.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Accessible button switcher on mobile viewports */}
+      <div
+        className="mobile-chapter-grid"
+        role="group"
+        aria-label="Chapter quick navigation"
+        style={{ marginTop: "1rem", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.5rem" }}
+      >
+        {chapters.map((c, i) => {
+          const isActive = active === c.id;
+          return (
+            <button
+              key={c.id}
+              className="btn btn-ghost btn-sm"
+              style={{
+                minHeight: "44px",
+                justifyContent: "flex-start",
+                borderColor: isActive ? "var(--teal-700)" : undefined,
+                background: isActive ? "var(--direct-bg)" : undefined,
+                color: isActive ? "var(--teal-800)" : undefined,
+                fontWeight: isActive ? 600 : 400,
+              }}
+              onClick={() => onPick(c.id)}
+              aria-current={isActive ? "page" : undefined}
+            >
+              <span className="t-data">{String(i + 1).padStart(2, "0")}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {c.title}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Accessible equivalent of the graphic above */}
       <ul className="sr-only">
         {chapters.map((c, i) => (
           <li key={c.id}>

@@ -7,7 +7,7 @@
  * because a field is missing — missing values render as explicit fallbacks.
  */
 
-import { useMemo } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type { ReceiptKind } from "../types";
 import type { Archive } from "../data";
 import { dateLabel, fmtMoney } from "../data";
@@ -15,6 +15,7 @@ import { KIND_LABEL } from "../selectors";
 
 interface Props {
   archive: Archive;
+  isArchiveLoaded: boolean;
   query: string;
   kinds: ReceiptKind[];
   chapterScope: string | null;
@@ -26,10 +27,11 @@ interface Props {
 }
 
 const ALL_KINDS: ReceiptKind[] = ["music", "transaction"];
-const PAGE = 60;
+const PAGE_SIZE = 60;
 
 export function Explorer({
   archive,
+  isArchiveLoaded,
   query,
   kinds,
   chapterScope,
@@ -39,8 +41,15 @@ export function Explorer({
   onScope,
   onOpen,
 }: Props) {
+  const deferredQuery = useDeferredValue(query);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [deferredQuery, kinds, chapterScope]);
+
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = deferredQuery.trim().toLowerCase();
     let r = archive.receipts;
 
     if (chapterScope) {
@@ -53,8 +62,9 @@ export function Explorer({
     }
     if (q) r = r.filter((x) => x.searchText.includes(q));
 
-    return r.sort((a, b) => b.ts - a.ts);
-  }, [archive, query, kinds, chapterScope]);
+    // Non-mutating sort copy
+    return [...r].sort((a, b) => b.ts - a.ts);
+  }, [archive, deferredQuery, kinds, chapterScope]);
 
   const scopeChapter = chapterScope
     ? archive.chapters.find((c) => c.id === chapterScope)
@@ -131,26 +141,45 @@ export function Explorer({
               aria-pressed={true}
               onClick={() => onScope(null)}
               style={{ marginLeft: "0.5rem" }}
+              aria-label={`Clear chapter scope ${scopeChapter.title}`}
             >
               Chapter: {scopeChapter.title} · clear ✕
             </button>
           )}
         </div>
 
+        {!isArchiveLoaded && (
+          <div
+            className="t-data"
+            style={{
+              padding: "0.55rem 0.85rem",
+              background: "var(--stock-sunk)",
+              border: "1px dashed var(--rule-strong)",
+              marginTop: "0.9rem",
+              fontSize: "0.75rem",
+              color: "var(--teal-700)",
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            Expanding full 152,321 receipt archive in background… ({rows.length} preview records searchable)
+          </div>
+        )}
+
         <div className="count-line">
-          <span className="t-data" style={{ fontSize: "0.72rem" }}>
+          <span className="t-data" style={{ fontSize: "0.76rem" }}>
             <strong style={{ color: "var(--ink-900)" }}>
               {rows.length.toLocaleString()}
             </strong>{" "}
             of {archive.totals.all.toLocaleString()} receipts
           </span>
           {scopeChapter && (
-            <span className="t-data" style={{ fontSize: "0.68rem", color: "var(--text-subtle)" }}>
+            <span className="t-data" style={{ fontSize: "0.72rem", color: "var(--text-subtle)" }}>
               restricted to “{scopeChapter.title}” ({scopeChapter.dateSpan})
             </span>
           )}
-          <span className="t-data" style={{ fontSize: "0.68rem", color: "var(--text-subtle)" }}>
-            showing first {Math.min(rows.length, PAGE)}
+          <span className="t-data" style={{ fontSize: "0.72rem", color: "var(--text-subtle)" }}>
+            showing {Math.min(rows.length, visibleCount).toLocaleString()} of {rows.length.toLocaleString()}
           </span>
         </div>
 
@@ -159,7 +188,7 @@ export function Explorer({
             <div className="t-h3">No receipts match.</div>
             <p className="t-body" style={{ marginTop: "0.6rem", color: "var(--text-muted)" }}>
               That combination of search text and filters returns nothing in the
-              archive. Loosen a filter or clear the search to restore the full
+              archive. Loosen a filter or clear the search to restore the full{" "}
               {archive.totals.all.toLocaleString()} records.
             </p>
             <button
@@ -175,32 +204,49 @@ export function Explorer({
             </button>
           </div>
         ) : (
-          <div className="receipt-rows">
-            {rows.slice(0, PAGE).map((r) => (
-              <button
-                key={r.id}
-                className="row"
-                aria-current={openId === r.id ? "true" : undefined}
-                onClick={() => onOpen(r.id)}
-                aria-label={`Open receipt ${r.id}: ${r.title}`}
-              >
-                <span className="row-date t-data">{dateLabel(r.ts)}</span>
-                <span>
-                  <span className="row-title">{r.title}</span>
-                  <span className="row-sub" style={{ display: "block" }}>
-                    {r.subtitle || "— no further text in the source record —"}
+          <>
+            <div className="receipt-rows">
+              {rows.slice(0, visibleCount).map((r) => (
+                <button
+                  key={r.id}
+                  className="row"
+                  aria-current={openId === r.id ? "true" : undefined}
+                  onClick={() => onOpen(r.id)}
+                  aria-label={`Open receipt ${r.id}: ${r.title}`}
+                >
+                  <span className="row-date t-data">{dateLabel(r.ts)}</span>
+                  <span>
+                    <span className="row-title" style={{ display: "block" }}>{r.title}</span>
+                    <span className="row-sub" style={{ display: "block" }}>
+                      {r.subtitle || "— no further text in the source record —"}
+                    </span>
                   </span>
-                </span>
-                <span className="row-kind" data-kind={r.kind}>
-                  {r.kind === "music"
-                    ? r.music
-                      ? r.music.artist
-                      : ""
-                    : fmtMoney(r.transaction ? r.transaction.amount : null)}
-                </span>
-              </button>
-            ))}
-          </div>
+                  <span className="row-kind" data-kind={r.kind}>
+                    {r.kind === "music"
+                      ? r.music?.platform || "Music"
+                      : fmtMoney(r.transaction ? r.transaction.amount : null)}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {rows.length > visibleCount && (
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0.75rem", marginTop: "1.75rem" }}>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setVisibleCount((c) => Math.min(c + 60, rows.length))}
+                >
+                  Show 60 more receipts ({Math.min(visibleCount + 60, rows.length).toLocaleString()} / {rows.length.toLocaleString()}) ↓
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setVisibleCount(rows.length)}
+                >
+                  Show all ({rows.length.toLocaleString()})
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>

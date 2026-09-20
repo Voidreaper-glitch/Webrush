@@ -1,0 +1,374 @@
+{
+  "SP-000001": {
+    "id": "SP-000001",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1373251474,
+    "title": "Say It, Just Say It",
+    "subtitle": "The Mowgli's",
+    "searchText": "say it, just say it the mowgli's waiting for the dawn web player",
+    "music": {
+      "track": "Say It, Just Say It",
+      "artist": "The Mowgli's",
+      "album": "Waiting For The Dawn",
+      "platform": "web player",
+      "msPlayed": 3185,
+      "reasonStart": "autoplay",
+      "reasonEnd": "clickrow",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-000578": {
+    "id": "SP-000578",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1439346371,
+    "title": "From Eden",
+    "subtitle": "Hozier",
+    "searchText": "from eden hozier hozier ios",
+    "music": {
+      "track": "From Eden",
+      "artist": "Hozier",
+      "album": "Hozier",
+      "platform": "iOS",
+      "msPlayed": 283466,
+      "reasonStart": "unknown",
+      "reasonEnd": "trackdone",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-004158": {
+    "id": "SP-004158",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1468836048,
+    "title": "Strawberry Fields Forever - Remastered 2009",
+    "subtitle": "The Beatles",
+    "searchText": "strawberry fields forever - remastered 2009 the beatles magical mystery tour android",
+    "music": {
+      "track": "Strawberry Fields Forever - Remastered 2009",
+      "artist": "The Beatles",
+      "album": "Magical Mystery Tour",
+      "platform": "android",
+      "msPlayed": 1380,
+      "reasonStart": "clickrow",
+      "reasonEnd": "endplay",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-009439": {
+    "id": "SP-009439",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1483378763,
+    "title": "She Said She Said - Remastered 2009",
+    "subtitle": "The Beatles",
+    "searchText": "she said she said - remastered 2009 the beatles revolver android",
+    "music": {
+      "track": "She Said She Said - Remastered 2009",
+      "artist": "The Beatles",
+      "album": "Revolver",
+      "platform": "android",
+      "msPlayed": 156040,
+      "reasonStart": "fwdbtn",
+      "reasonEnd": "trackdone",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-015163": {
+    "id": "SP-015163",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1492423055,
+    "title": "Concerning Hobbits",
+    "subtitle": "Howard Shore",
+    "searchText": "concerning hobbits howard shore the lord of the rings: the fellowship of the ring (original motion picture soundtrack) android",
+    "music": {
+      "track": "Concerning Hobbits",
+      "artist": "Howard Shore",
+      "album": "The Lord of the Rings: The Fellowship of the Ring (Original Motion Picture Soundtrack)",
+      "platform": "android",
+      "msPlayed": 164426,
+      "reasonStart": "clickrow",
+      "reasonEnd": "endplay",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-015821": {
+    "id": "SP-015821",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1493382393,
+    "title": "Till There Was You - Remastered 2009",
+    "subtitle": "The Beatles",
+    "searchText": "till there was you - remastered 2009 the beatles with the beatles ios",
+    "music": {
+      "track": "Till There Was You - Remastered 2009",
+      "artist": "The Beatles",
+      "album": "With The Beatles",
+      "platform": "iOS",
+      "msPlayed": 92,
+      "reasonStart": "fwdbtn",
+      "reasonEnd": "fwdbtn",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-038664": {
+    "id": "SP-038664",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1520052826,
+    "title": "Guitarra y vos",
+    "subtitle": "Jorge Drexler",
+    "searchText": "guitarra y vos jorge drexler eco android",
+    "music": {
+      "track": "Guitarra y vos",
+      "artist": "Jorge Drexler",
+      "album": "Eco",
+      "platform": "android",
+      "msPlayed": 233649,
+      "reasonStart": "clickrow",
+      "reasonEnd": "endplay",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-050573": {
+    "id": "SP-050573",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1546309420,
+    "title": "P.S. I Love You - Remastered 2009",
+    "subtitle": "The Beatles",
+    "searchText": "p.s. i love you - remastered 2009 the beatles please please me android",
+    "music": {
+      "track": "P.S. I Love You - Remastered 2009",
+      "artist": "The Beatles",
+      "album": "Please Please Me",
+      "platform": "android",
+      "msPlayed": 2441,
+      "reasonStart": "fwdbtn",
+      "reasonEnd": "fwdbtn",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-068288": {
+    "id": "SP-068288",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1584058421,
+    "title": "Caution",
+    "subtitle": "The Killers",
+    "searchText": "caution the killers caution cast to device",
+    "music": {
+      "track": "Caution",
+      "artist": "The Killers",
+      "album": "Caution",
+      "platform": "cast to device",
+      "msPlayed": 34684,
+      "reasonStart": "remote",
+      "reasonEnd": "trackdone",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-075407": {
+    "id": "SP-075407",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1596311991,
+    "title": "This Is Your Life",
+    "subtitle": "The Killers",
+    "searchText": "this is your life the killers day & age - bonus tracks android",
+    "music": {
+      "track": "This Is Your Life",
+      "artist": "The Killers",
+      "album": "Day & Age - Bonus Tracks",
+      "platform": "android",
+      "msPlayed": 218893,
+      "reasonStart": "trackdone",
+      "reasonEnd": "trackdone",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-081200": {
+    "id": "SP-081200",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1601873594,
+    "title": "The Prophecy",
+    "subtitle": "Howard Shore",
+    "searchText": "the prophecy howard shore the lord of the rings: the fellowship of the ring (original motion picture soundtrack) android",
+    "music": {
+      "track": "The Prophecy",
+      "artist": "Howard Shore",
+      "album": "The Lord of the Rings: The Fellowship of the Ring (Original Motion Picture Soundtrack)",
+      "platform": "android",
+      "msPlayed": 97820,
+      "reasonStart": "clickrow",
+      "reasonEnd": "endplay",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-104390": {
+    "id": "SP-104390",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1628374428,
+    "title": "Good Day Sunshine - Remastered 2009",
+    "subtitle": "The Beatles",
+    "searchText": "good day sunshine - remastered 2009 the beatles revolver android",
+    "music": {
+      "track": "Good Day Sunshine - Remastered 2009",
+      "artist": "The Beatles",
+      "album": "Revolver",
+      "platform": "android",
+      "msPlayed": 1051,
+      "reasonStart": "trackdone",
+      "reasonEnd": "fwdbtn",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-104864": {
+    "id": "SP-104864",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1629425999,
+    "title": "Quién Me Ha Robado el Mes de Abril",
+    "subtitle": "Joaquín Sabina",
+    "searchText": "quién me ha robado el mes de abril joaquín sabina sabina 70 android",
+    "music": {
+      "track": "Quién Me Ha Robado el Mes de Abril",
+      "artist": "Joaquín Sabina",
+      "album": "Sabina 70",
+      "platform": "android",
+      "msPlayed": 294662,
+      "reasonStart": "trackdone",
+      "reasonEnd": "trackdone",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-104880": {
+    "id": "SP-104880",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1629429194,
+    "title": "Por el Bulevar de los Sueños Rotos",
+    "subtitle": "Joaquín Sabina",
+    "searchText": "por el bulevar de los sueños rotos joaquín sabina esta boca es mia android",
+    "music": {
+      "track": "Por el Bulevar de los Sueños Rotos",
+      "artist": "Joaquín Sabina",
+      "album": "Esta Boca Es Mia",
+      "platform": "android",
+      "msPlayed": 238563,
+      "reasonStart": "trackdone",
+      "reasonEnd": "trackdone",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "SP-130319": {
+    "id": "SP-130319",
+    "source": "spotify",
+    "kind": "music",
+    "ts": 1675466276,
+    "title": "I Was Born To Love You",
+    "subtitle": "Ray LaMontagne",
+    "searchText": "i was born to love you ray lamontagne i was born to love you mac",
+    "music": {
+      "track": "I Was Born To Love You",
+      "artist": "Ray LaMontagne",
+      "album": "I Was Born To Love You",
+      "platform": "mac",
+      "msPlayed": 265805,
+      "reasonStart": "remote",
+      "reasonEnd": "trackdone",
+      "skipped": false,
+      "shuffle": false
+    },
+    "transaction": null
+  },
+  "HH-000812": {
+    "id": "HH-000812",
+    "source": "household",
+    "kind": "transaction",
+    "ts": 1511099910,
+    "title": "Movie",
+    "subtitle": "2 PVR Place 6",
+    "searchText": "culture movie 2 pvr place 6 credit card expense 436",
+    "music": null,
+    "transaction": {
+      "category": "Culture",
+      "subcategory": "Movie",
+      "note": "2 PVR Place 6",
+      "amount": 436,
+      "mode": "Credit Card",
+      "flow": "Expense",
+      "currency": "INR"
+    }
+  },
+  "HH-001431": {
+    "id": "HH-001431",
+    "source": "household",
+    "kind": "transaction",
+    "ts": 1493378269,
+    "title": "Netflix",
+    "subtitle": "1 month subscription",
+    "searchText": "subscription netflix 1 month subscription saving bank account 1 expense 149",
+    "music": null,
+    "transaction": {
+      "category": "subscription",
+      "subcategory": "Netflix",
+      "note": "1 month subscription",
+      "amount": 149,
+      "mode": "Saving Bank account 1",
+      "flow": "Expense",
+      "currency": "INR"
+    }
+  },
+  "HH-001674": {
+    "id": "HH-001674",
+    "source": "household",
+    "kind": "transaction",
+    "ts": 1483833600,
+    "title": "Netflix",
+    "subtitle": "1 month subscription",
+    "searchText": "subscription netflix 1 month subscription saving bank account 1 expense 149",
+    "music": null,
+    "transaction": {
+      "category": "subscription",
+      "subcategory": "Netflix",
+      "note": "1 month subscription",
+      "amount": 149,
+      "mode": "Saving Bank account 1",
+      "flow": "Expense",
+      "currency": "INR"
+    }
+  }
+}

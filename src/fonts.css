@@ -91,7 +91,7 @@
 .t-hero {
   font-family: var(--font-display);
   font-size: clamp(2.9rem, 10vw, 8rem);
-  line-height: 0.88;
+  line-height: 1.05;
   letter-spacing: -0.038em;
   font-weight: 700;
   font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 1;
@@ -103,7 +103,7 @@
 .t-statement {
   font-family: var(--font-display);
   font-size: clamp(2rem, 5.6vw, 4.4rem);
-  line-height: 0.94;
+  line-height: 1.1;
   letter-spacing: -0.032em;
   font-weight: 650;
   font-variation-settings: "opsz" 120, "SOFT" 0, "WONK" 1;
@@ -114,7 +114,7 @@
 .t-h2 {
   font-family: var(--font-display);
   font-size: clamp(1.65rem, 3.9vw, 3rem);
-  line-height: 0.98;
+  line-height: 1.15;
   letter-spacing: -0.026em;
   font-weight: 650;
   font-variation-settings: "opsz" 90, "SOFT" 0, "WONK" 1;
@@ -125,7 +125,7 @@
 .t-h3 {
   font-family: var(--font-display);
   font-size: clamp(1.18rem, 2.1vw, 1.6rem);
-  line-height: 1.1;
+  line-height: 1.25;
   letter-spacing: -0.02em;
   font-weight: 620;
   font-variation-settings: "opsz" 48, "SOFT" 0, "WONK" 0;
