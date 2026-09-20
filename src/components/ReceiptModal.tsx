@@ -1,114 +1,134 @@
 /**
  * AFTERPRINT — receipt detail modal.
  *
- * Shows the source record's real fields, plus every supported connection.
- * Focus is moved into the modal on open and returned on close.
- * Escape closes. The scrim click closes. Nothing is invented.
+ * The modal exposes only fields present in the source receipt and only curated
+ * connections whose other endpoint is available in the current preview.
  */
 
 import { useEffect, useRef } from "react";
-import type { Edge, Receipt } from "../types";
+import type { Receipt } from "../types";
 import type { Archive } from "../data";
-import {
-  dateLabel,
-  dateTimeLabel,
-  durationLabel,
-  fmtMoney,
-} from "../data";
+import { dateLabel, dateTimeLabel, durationLabel, fmtMoney } from "../data";
 import { edgesFor, KIND_LABEL_SINGULAR, otherEnd } from "../selectors";
+import { edgeKey, labelForRule } from "../relationship-labels";
+import "./ThreadView.css";
 
 interface Props {
   receipt: Receipt;
   archive: Archive;
   onClose: () => void;
   onOpenRelated: (id: string) => void;
+  onExplore?: (receipt: Receipt) => void;
 }
 
-function labelForRule(rule: Edge["rule"]): string {
-  switch (rule) {
-    case "same-artist":
-      return "Same artist";
-    case "same-album":
-      return "Same album";
-    case "same-platform":
-      return "Same device";
-    case "same-subcategory":
-      return "Same subcategory";
-    case "same-venue":
-      return "Same venue";
-    case "same-language-strand":
-      return "Shared language strand";
-    case "temporal+theme":
-      return "Close in time + shared theme";
-    case "co-occurrence":
-      return "Same chapter window";
-    case "device-shift":
-      return "Device change";
-    default:
-      return rule;
-  }
-}
-
-export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props) {
+export function ReceiptModal({
+  receipt,
+  archive,
+  onClose,
+  onOpenRelated,
+  onExplore,
+}: Props) {
+  const scrimRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+  const onCloseRef = useRef(onClose);
 
-  // Scroll to top whenever receipt changes
+  // A parent render may replace onClose while this modal stays mounted. Keep
+  // the latest callback without restarting the open lifecycle or focus restore.
   useEffect(() => {
-    if (panelRef.current) {
-      panelRef.current.scrollTop = 0;
-    }
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (panelRef.current) panelRef.current.scrollTop = 0;
   }, [receipt.id]);
 
   useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null;
-    if (closeBtnRef.current) {
-      closeBtnRef.current.focus();
+    const previous = document.activeElement as HTMLElement | null;
+    const host = scrimRef.current;
+    const background = host?.parentElement
+      ? Array.from(host.parentElement.children).filter((node) => node !== host)
+      : [];
+    const previousBackgroundState = background.map((node) => {
+      const element = node as HTMLElement;
+      return {
+        element,
+        ariaHidden: element.getAttribute("aria-hidden"),
+        inert: element.inert,
+      };
+    });
+
+    for (const node of background) {
+      const element = node as HTMLElement;
+      element.inert = true;
+      element.setAttribute("aria-hidden", "true");
     }
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      } else if (e.key === "Tab" && panelRef.current) {
-        const el = panelRef.current;
-        const focusable = Array.from(
-          el.querySelectorAll<HTMLElement>(
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-          )
-        ).filter((n) => !n.hasAttribute("disabled"));
-        if (!focusable.length) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
+    closeBtnRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+
+      const focusable = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((element) => !element.hasAttribute("disabled"));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
     document.addEventListener("keydown", onKey);
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-      if (prev && typeof prev.focus === "function") prev.focus();
+      document.body.style.overflow = previousOverflow;
+      for (const state of previousBackgroundState) {
+        state.element.inert = state.inert;
+        if (state.ariaHidden === null) state.element.removeAttribute("aria-hidden");
+        else state.element.setAttribute("aria-hidden", state.ariaHidden);
+      }
+      if (previous && previous.isConnected && typeof previous.focus === "function") {
+        previous.focus();
+      }
     };
-  }, [onClose]);
+  }, []);
 
-  const rels = edgesFor(archive, receipt.id);
-  const m = receipt.music;
-  const t = receipt.transaction;
+  const related = edgesFor(archive, receipt.id);
+  const availableRelated = related.flatMap((edge) => {
+    const other = archive.byId.get(otherEnd(edge, receipt.id));
+    return other ? [{ edge, other }] : [];
+  });
+  const hasMissingEndpoints = availableRelated.length < related.length;
+  const music = receipt.music;
+  const transaction = receipt.transaction;
   const sourceName = receipt.source === "spotify" ? "Spotify" : "Household";
+  const exploreLabel = music?.artist
+    ? "Explore this artist →"
+    : transaction?.category
+    ? "Explore this category →"
+    : "Explore this record →";
 
   return (
     <div
+      ref={scrimRef}
       className="scrim"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onCloseRef.current();
       }}
       role="presentation"
     >
@@ -137,7 +157,8 @@ export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props
           <button
             ref={closeBtnRef}
             className="x-btn"
-            onClick={onClose}
+            style={{ minWidth: "44px", minHeight: "44px" }}
+            onClick={() => onCloseRef.current()}
             aria-label="Close receipt detail"
           >
             <span aria-hidden="true">✕</span>
@@ -146,62 +167,58 @@ export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props
 
         <div className="modal-body">
           <div className="perf-edge" aria-hidden="true" />
-
           <dl className="kv">
             <dt>Source ID</dt>
             <dd className="t-data">{receipt.id}</dd>
-
             <dt>Timestamp</dt>
             <dd className="t-data">{dateTimeLabel(receipt.ts)}</dd>
 
-            {m && (
+            {music && (
               <>
                 <dt>Artist</dt>
-                <dd>{m.artist || "—"}</dd>
+                <dd>{music.artist || "—"}</dd>
                 <dt>Album</dt>
-                <dd>{m.album || "—"}</dd>
+                <dd>{music.album || "—"}</dd>
                 <dt>Platform</dt>
-                <dd>{m.platform}</dd>
+                <dd>{music.platform}</dd>
                 <dt>Played</dt>
                 <dd className="t-data">
-                  {durationLabel(m.msPlayed)}
-                  {m.skipped ? " · skipped" : " · not skipped"}
+                  {durationLabel(music.msPlayed)}
+                  {music.skipped ? " · skipped" : " · not skipped"}
                 </dd>
                 <dt>Start reason</dt>
-                <dd>{m.reasonStart}</dd>
+                <dd>{music.reasonStart}</dd>
                 <dt>End reason</dt>
-                <dd>{m.reasonEnd}</dd>
+                <dd>{music.reasonEnd}</dd>
               </>
             )}
 
-            {t && (
+            {transaction && (
               <>
                 <dt>Category</dt>
-                <dd>{t.category}</dd>
-                {t.subcategory && (
+                <dd>{transaction.category}</dd>
+                {transaction.subcategory && (
                   <>
                     <dt>Subcategory</dt>
-                    <dd>{t.subcategory}</dd>
+                    <dd>{transaction.subcategory}</dd>
                   </>
                 )}
                 <dt>Amount</dt>
-                <dd className="t-data">
-                  {fmtMoney(t.amount)}
-                </dd>
+                <dd className="t-data">{fmtMoney(transaction.amount)}</dd>
                 <dt>Flow</dt>
-                <dd>{t.flow || "—"}</dd>
+                <dd>{transaction.flow || "—"}</dd>
                 <dt>Mode</dt>
-                <dd>{t.mode}</dd>
-                {t.note && (
+                <dd>{transaction.mode}</dd>
+                {transaction.note && (
                   <>
                     <dt>Note</dt>
-                    <dd>{t.note}</dd>
+                    <dd>{transaction.note}</dd>
                   </>
                 )}
               </>
             )}
 
-            {!m && !t && (
+            {!music && !transaction && (
               <>
                 <dt>Detail</dt>
                 <dd>No further fields are present in the source record.</dd>
@@ -209,20 +226,34 @@ export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props
             )}
           </dl>
 
+          <div className="receipt-modal-explore" style={{ marginTop: "1.3rem" }}>
+            {onExplore && (
+              <button className="btn btn-ghost btn-sm" onClick={() => onExplore(receipt)}>
+                {exploreLabel}
+              </button>
+            )}
+          </div>
+
           <div style={{ marginTop: "1.6rem" }}>
-            <div className="t-label">Supported connections ({rels.length})</div>
-            {rels.length === 0 ? (
+            <div className="t-label">Supported connections</div>
+            {related.length === 0 ? (
               <p className="t-body" style={{ marginTop: "0.55rem", color: "var(--text-muted)" }}>
-                No connection from this record is supported by the data. That is a
-                finding, not an error: this receipt stands alone in the archive.
+                No curated connection has been added for this receipt yet.
+              </p>
+            ) : availableRelated.length === 0 ? (
+              <p className="t-body" style={{ marginTop: "0.55rem", color: "var(--text-muted)" }}>
+                Curated connections for this receipt refer to records not included in this preview, so they cannot be opened here.
               </p>
             ) : (
-              <ul className="next-list">
-                {rels.map((e: Edge) => {
-                  const other = archive.byId.get(otherEnd(e, receipt.id));
-                  if (!other) return null;
-                  return (
-                    <li key={`${e.a}-${e.b}`}>
+              <>
+                {hasMissingEndpoints && (
+                  <p className="t-body" style={{ marginTop: "0.55rem", color: "var(--text-muted)" }}>
+                    Some curated connections refer to records not included in this preview; only available endpoints are listed.
+                  </p>
+                )}
+                <ul className="next-list">
+                  {availableRelated.map(({ edge, other }) => (
+                    <li key={edgeKey(edge)}>
                       <button
                         className="trail-node"
                         onClick={() => onOpenRelated(other.id)}
@@ -236,15 +267,15 @@ export function ReceiptModal({ receipt, archive, onClose, onOpenRelated }: Props
                           <span style={{ display: "block", fontSize: "0.92rem", fontWeight: 600 }}>
                             {other.title}
                           </span>
-                          <span className="badge" data-strength={e.strength} style={{ marginTop: "0.35rem" }}>
-                            {labelForRule(e.rule)} · {e.strength}
+                          <span className="badge" data-strength={edge.strength} style={{ marginTop: "0.35rem" }}>
+                            {labelForRule(edge.rule)} · {edge.strength}
                           </span>
                         </span>
                       </button>
                     </li>
-                  );
-                })}
-              </ul>
+                  ))}
+                </ul>
+              </>
             )}
           </div>
         </div>

@@ -15,13 +15,10 @@ interface Props {
   archive: Archive;
   activeChapter: string | null;
   onPick: (id: string) => void;
+  onExploreArtist: (artist: string, chapter: string | null) => void;
 }
 
-/* The archive's own extremes, so the ribbon is proportional to real evidence. */
-const MIN_DATE = Date.UTC(2013, 6, 8) / 1000;
-const MAX_DATE = Date.UTC(2024, 11, 16) / 1000;
-
-export function ChapterAtlas({ archive, activeChapter, onPick }: Props) {
+export function ChapterAtlas({ archive, activeChapter, onPick, onExploreArtist }: Props) {
   const chapters = archive.chapters;
 
   return (
@@ -34,7 +31,7 @@ export function ChapterAtlas({ archive, activeChapter, onPick }: Props) {
             <span className="t-label">The Chapter Atlas</span>
           </div>
           <h2 id="atlas-h" className="t-statement">
-            Not a timeline. A reading of it.
+            Four chapters. Different rhythms.
           </h2>
           <p className="t-lead">
             Each chapter is a defensible reading of real receipts — one motif the
@@ -54,6 +51,7 @@ export function ChapterAtlas({ archive, activeChapter, onPick }: Props) {
               index={i + 1}
               active={activeChapter === c.id}
               onPick={onPick}
+              onExploreArtist={onExploreArtist}
             />
           ))}
         </div>
@@ -61,27 +59,6 @@ export function ChapterAtlas({ archive, activeChapter, onPick }: Props) {
     </section>
   );
 }
-
-const CHAPTER_BRIDGES = [
-  {
-    from: "ch1",
-    to: "ch2",
-    label: "Ch 1 → 2: Beatles motif (715 → 4,569 plays)",
-    motif: "The Beatles link Chapter 1 and Chapter 2: 715 plays in browsing years expanding to 4,569 plays in the regime.",
-  },
-  {
-    from: "ch2",
-    to: "ch3",
-    label: "Ch 2 → 3: The Killers surge (1,650 → 3,065 plays)",
-    motif: "The Killers link Chapter 2 and Chapter 3: rising from 1,650 plays in the regime to 3,065 plays across lockdown.",
-  },
-  {
-    from: "ch3",
-    to: "ch4",
-    label: "Ch 3 → 4: Spanish songwriting strand (2,294 plays)",
-    motif: "Repertoire shifts as 2,294 Spanish-language plays across six artists enter the library permanently.",
-  },
-];
 
 function Ribbon({
   chapters,
@@ -92,6 +69,8 @@ function Ribbon({
   active: string | null;
   onPick: (id: string) => void;
 }) {
+  const MIN_DATE = Math.min(...chapters.map((chapter) => chapter.lo));
+  const MAX_DATE = Math.max(...chapters.map((chapter) => chapter.hi));
   const span = MAX_DATE - MIN_DATE;
   const pos = (t: number) => ((t - MIN_DATE) / span) * 100;
 
@@ -172,20 +151,6 @@ function Ribbon({
         })}
       </svg>
 
-      {/* Cross-chapter recurring motifs that link adjacent chapters */}
-      <div style={{ marginTop: "1rem", paddingTop: "0.85rem", borderTop: "1px solid var(--rule-hair)" }}>
-        <div className="t-label" style={{ marginBottom: "0.45rem" }}>
-          Recurring motifs connecting chapters
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem" }}>
-          {CHAPTER_BRIDGES.map((b) => (
-            <span key={b.from} className="chip" data-kind="music" title={b.motif}>
-              {b.label}
-            </span>
-          ))}
-        </div>
-      </div>
-
       {/* Accessible button switcher on mobile viewports */}
       <div
         className="mobile-chapter-grid"
@@ -225,7 +190,7 @@ function Ribbon({
           <li key={c.id}>
             Chapter {i + 1}: {c.title}, {c.dateSpan}, {c.counts.plays} plays,{" "}
             {c.counts.artists} artists.{" "}
-            <button onClick={() => onPick(c.id)}>Open this chapter</button>
+            
           </li>
         ))}
       </ul>
@@ -238,11 +203,13 @@ function ChapterCard({
   index,
   active,
   onPick,
+  onExploreArtist,
 }: {
   chapter: Chapter;
   index: number;
   active: boolean;
   onPick: (id: string) => void;
+  onExploreArtist: (artist: string, chapter: string | null) => void;
 }) {
   const mixed = chapter.counts.transactions > 0;
 
@@ -283,9 +250,9 @@ function ChapterCard({
 
         <div className="ch-chiprow">
           {chapter.topArtists.slice(0, 3).map((a) => (
-            <span className="chip" data-kind="music" key={a.artist}>
-              {a.artist} · {a.plays.toLocaleString()}
-            </span>
+            <button className="chip motif-chip" data-kind="music" key={a.artist} onClick={() => onExploreArtist(a.artist, chapter.id)} aria-label={`Explore ${a.artist} in ${chapter.title}`}>
+              {a.artist} · {a.plays.toLocaleString()} ↗
+            </button>
           ))}
           {mixed && (
             <span className="chip" data-kind="transaction">

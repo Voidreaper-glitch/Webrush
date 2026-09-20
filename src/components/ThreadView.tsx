@@ -1,19 +1,17 @@
 /**
  * AFTERPRINT — Follow the Thread.
  *
- * The signature interaction. Opening a chapter drops the user on the first
- * clue with its evidence panel open. Each step shows which two receipts are
- * connected, the exact shared detail, whether the link is direct or
- * tentative, and what it might mean in this chapter.
- *
- * The visual trail is a projection of the same edges the accessible list
- * describes — never a decorative graph.
+ * The trail is a projection of the curated edge sequence, not a decorative
+ * graph. The current receipt and its evidence stay ahead of the optional clue
+ * index so the investigation remains useful on a narrow screen.
  */
 
-import { Fragment, useMemo } from "react";
+import { Fragment } from "react";
 import type { Edge, Receipt, TrailNode } from "../types";
 import type { Archive } from "../data";
 import { dateLabel, dateTimeLabel, durationLabel, fmtMoney } from "../data";
+import { edgeId, labelForRule } from "../relationship-labels";
+import "./ThreadView.css";
 
 interface Props {
   archive: Archive;
@@ -25,6 +23,54 @@ interface Props {
   onInspect: (id: string) => void;
 }
 
+type Trail = { start: string; nodes: TrailNode[] };
+
+function dedupeAdjacent(ids: string[]): string[] {
+  const out: string[] = [];
+  for (const id of ids) {
+    if (out[out.length - 1] !== id) out.push(id);
+  }
+  return out;
+}
+
+function edgeBetween(
+  edges: Edge[],
+  from: string,
+  to: string,
+  expectedId?: string | null,
+  expectedRule?: Edge["rule"] | null
+): Edge | null {
+  const candidates = edges.filter(
+    (edge) =>
+      (edge.a === from && edge.b === to) ||
+      (edge.a === to && edge.b === from)
+  );
+  if (expectedId) {
+    const byId = candidates.find((edge) => edgeId(edge) === expectedId);
+    if (byId) return byId;
+  }
+  if (expectedRule) {
+    return candidates.find((edge) => edge.rule === expectedRule) ?? null;
+  }
+  return candidates[0] ?? null;
+}
+
+/** Find only the edge promised by the guided node, never an unrelated edge. */
+function guidedEdge(
+  archive: Archive,
+  from: string,
+  to: string,
+  node?: TrailNode
+): Edge | null {
+  if (!node || node.nextId !== to) return null;
+  return edgeBetween(archive.edges, from, to, node.edgeId, node.rule);
+}
+
+function trailNodeKey(node: TrailNode): string {
+  if (node.edgeId) return node.edgeId;
+  return `${node.receiptId}->${node.nextId ?? "end"}:${node.rule ?? "end"}`;
+}
+
 export function ThreadView({
   archive,
   chapterId,
@@ -34,251 +80,299 @@ export function ThreadView({
   onReset,
   onInspect,
 }: Props) {
-  const chapter = archive.chapters.find((c) => c.id === chapterId);
-  const trail = archive.story.trails[chapterId];
+  // Keep all data derivation before rendering; absent chapters/trails are a
+  // valid loading or stale-navigation state and must not create hook-order bugs.
+  const chapter = archive.chapters.find((item) => item.id === chapterId);
+  const trail = archive.story.trails[chapterId] as Trail | undefined;
+  if (!chapter || !trail) return null;
 
-  const { nodes, currentId } = useMemo(() => {
-    if (!trail) return { nodes: [] as TrailNode[], currentId: null as string | null };
-    const ids = new Set(trail.nodes.map((n: TrailNode) => n.receiptId));
-    const cur = [...path].reverse().find((p: string) => ids.has(p)) ?? trail.start;
-    return { nodes: trail.nodes, currentId: cur };
-  }, [trail, path]);
+  const nodes = trail.nodes;
+  const nodeIds = new Set(nodes.map((node) => node.receiptId));
+  // App stores advances without the starting receipt. Rebuilding this list is
+  // what lets a first advance explain itself using the real start node.
+  const visited = dedupeAdjacent([trail.start, ...path]);
+  const currentId =
+    [...visited].reverse().find((id) => nodeIds.has(id)) ?? trail.start;
+  const current = archive.byId.get(currentId);
+  const currentIndex = nodes.findIndex((node) => node.receiptId === currentId);
+  const visitIndex = visited.lastIndexOf(currentId);
+  const priorId = visitIndex > 0 ? visited[visitIndex - 1] : null;
+  const priorNode = priorId
+    ? nodes.find((node) => node.receiptId === priorId)
+    : undefined;
 
-  if (!chapter) return null;
+  // An independently selected receipt is intentionally not paired with any
+  // merely coincidental archive edge. Only the edge declared by the prior
+  // guided path item can be shown as the current explanation.
+  const currentEdge =
+    priorId && currentId !== priorId
+      ? guidedEdge(archive, priorId, currentId, priorNode)
+      : null;
+  const currentNode = nodes.find((node) => node.receiptId === currentId);
+  const nextNode =
+    currentNode?.nextId
+      ? nodes.find((node) => node.receiptId === currentNode.nextId) ?? null
+      : null;
+  const nextEdge =
+    nextNode && currentNode
+      ? guidedEdge(archive, currentId, nextNode.receiptId, currentNode)
+      : null;
+  const canAdvance = Boolean(nextNode && nextEdge);
+  const isIndependent = Boolean(priorId && currentId !== priorId && !currentEdge);
 
-  const current = currentId ? archive.byId.get(currentId) : undefined;
-  const currentEdge = useMemo(() => {
-    if (!currentId) return null;
-    const idx = nodes.findIndex((n: TrailNode) => n.receiptId === currentId);
-    if (idx <= 0) return null;
-    const prev = nodes[idx - 1];
-    return (
-      archive.edges.find(
-        (e: Edge) =>
-          (e.a === prev.receiptId && e.b === currentId) ||
-          (e.b === prev.receiptId && e.a === currentId)
-      ) ?? null
-    );
-  }, [currentId, nodes, archive]);
-
-  const idx = nodes.findIndex((n: TrailNode) => n.receiptId === currentId);
-  const nextNode = idx >= 0 && idx + 1 < nodes.length ? nodes[idx + 1] : null;
+  const pathItems = visited.filter((id) => nodeIds.has(id));
+  const visitedNodeIds = new Set(pathItems);
 
   return (
-    <section className="section" id="thread" aria-labelledby="thread-h">
+    <section className="section thread-view" id="thread" aria-labelledby="thread-h">
       <div className="shell">
-        <div className="section-head">
+        <div className="section-head thread-heading">
           <div className="eyebrow">
             <span className="eyebrow-num">02</span>
             <span className="rule-dash" aria-hidden="true" />
-            <span className="t-label">
-              Follow the Thread · {chapter.title}
-            </span>
+            <span className="t-label">Follow the Thread · {chapter.title}</span>
           </div>
-          <h2 id="thread-h" className="t-statement">
-            Why do these moments belong together?
-          </h2>
-          <p className="t-lead">
-            Each step is a real connection with its evidence attached. Direct
-            matches say so. Tentative ones say that too — and nothing here is
-            presented as more than the receipts support.
-          </p>
+          <h2 id="thread-h" className="t-statement">{chapter.title}</h2>
+          <p className="t-lead thread-context">{chapter.hook}</p>
         </div>
 
-        {/* SVG/CSS Connection Trail Diagram */}
-        <div
-          className="connection-diagram-wrap"
-          style={{
-            marginTop: "1.5rem",
-            padding: "1rem 1.25rem",
-            background: "var(--stock-raised)",
-            border: "1px solid var(--rule)",
-            boxShadow: "var(--shadow-sm)",
-          }}
-        >
-          <div
-            className="t-label"
-            style={{
-              marginBottom: "0.75rem",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "0.5rem",
-            }}
-          >
-            <span>Connection Diagram · Clue Sequence</span>
-            <span className="t-label-teal">{nodes.length} connected moments</span>
+        <div className="connection-diagram-wrap thread-progress" aria-label="Guided clue progress">
+          <div className="thread-progress-head">
+            <div>
+              <div className="t-label">Clue progress</div>
+              <p className="thread-progress-caption">
+                {currentIndex >= 0 ? `Clue ${currentIndex + 1} of ${nodes.length}` : "Starting point"}
+              </p>
+            </div>
+            <span className="t-label-teal thread-progress-count">
+              {nodes.length} curated moments
+            </span>
           </div>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              overflowX: "auto",
-              paddingBottom: "0.5rem",
-              gap: "0.4rem",
-            }}
-          >
-            {nodes.map((n: TrailNode, i: number) => {
-              const isCur = n.receiptId === currentId;
-              const isDone = i < idx;
-              const next = i + 1 < nodes.length ? nodes[i + 1] : null;
+          <ol className="thread-progress-list">
+            {nodes.map((node, index) => {
+              const isCurrent = node.receiptId === currentId;
+              const isDone = visitedNodeIds.has(node.receiptId) && !isCurrent;
               return (
-                <Fragment key={`diag-${n.receiptId}`}>
-                  <button
-                    onClick={() => onJump(n.receiptId)}
-                    style={{
-                      flex: "none",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "0.45rem",
-                      padding: "0.35rem 0.65rem",
-                      background: isCur ? "var(--direct-bg)" : isDone ? "var(--stock-sunk)" : "var(--stock)",
-                      border: `1px solid ${isCur ? "var(--teal-700)" : "var(--rule-strong)"}`,
-                      boxShadow: isCur ? "var(--shadow-sm), inset 0 0 0 1px var(--teal-700)" : "none",
-                      cursor: "pointer",
-                    }}
-                    aria-label={`Jump to clue ${i + 1}: ${n.clue}`}
-                    aria-current={isCur ? "step" : undefined}
-                  >
-                    <span
-                      style={{
-                        width: "8px",
-                        height: "8px",
-                        background: isCur ? "var(--teal-700)" : isDone ? "var(--teal-500)" : "var(--ink-300)",
-                        borderRadius: "50%",
-                        display: "inline-block",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "0.75rem",
-                        fontWeight: isCur ? 700 : 500,
-                        color: isCur ? "var(--teal-900)" : "var(--ink-800)",
-                      }}
+                <Fragment key={`progress-${node.receiptId}`}>
+                  <li className="thread-progress-item">
+                    <button
+                      className="thread-progress-button"
+                      onClick={() => onJump(node.receiptId)}
+                      aria-current={isCurrent ? "step" : undefined}
+                      aria-label={`Jump to clue ${index + 1}: ${node.clue}${isCurrent ? " (current)" : ""}`}
                     >
-                      {String(i + 1).padStart(2, "0")} · {n.receiptId}
-                    </span>
-                  </button>
-
-                  {next && (
-                    <div
-                      style={{
-                        flex: "none",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.2rem",
-                        padding: "0 0.2rem",
-                      }}
-                    >
-                      <svg width="24" height="12" viewBox="0 0 24 12" style={{ display: "block" }}>
-                        <line
-                          x1="0"
-                          y1="6"
-                          x2="20"
-                          y2="6"
-                          stroke={i < idx ? "var(--teal-700)" : "var(--rule-ink)"}
-                          strokeWidth="2"
-                          strokeDasharray={next.rule === "temporal+theme" || next.rule === "co-occurrence" ? "3 3" : undefined}
-                        />
-                        <polygon
-                          points="18,3 24,6 18,9"
-                          fill={i < idx ? "var(--teal-700)" : "var(--rule-ink)"}
-                        />
-                      </svg>
-                    </div>
+                      <span className="thread-progress-dot" data-state={isCurrent ? "current" : isDone ? "done" : "next"} aria-hidden="true" />
+                      <span>
+                        <span className="t-label">{String(index + 1).padStart(2, "0")}</span>
+                        <span className="thread-progress-title">{node.clue}</span>
+                      </span>
+                    </button>
+                  </li>
+                  {index < nodes.length - 1 && (
+                    <li className="thread-progress-arrow" aria-hidden="true">
+                      <span>→</span>
+                    </li>
                   )}
                 </Fragment>
               );
             })}
-          </div>
+          </ol>
         </div>
 
-        <div className="workspace">
-          {/* ---------------- clue rail ---------------- */}
-          <div>
-            <div className="crumbs" role="group" aria-label="Trail path">
-              <span className="t-label" style={{ marginRight: "0.3rem" }}>
-                Path
-              </span>
-              {path.length === 0 && (
-                <span className="crumb" aria-current="page">
-                  start
-                </span>
-              )}
-              {path.map((pid, i) => {
-                const r: Receipt | undefined = archive.byId.get(pid);
+        <div className="workspace thread-workspace">
+          <div className="thread-evidence-column">
+            <nav className="crumbs" aria-label="Trail path">
+              <span className="t-label thread-path-label">Path</span>
+              {pathItems.map((id, index) => {
+                const receipt = archive.byId.get(id);
+                const clue = nodes.find((node) => node.receiptId === id)?.clue;
                 return (
-                  <Fragment key={`${pid}-${i}`}>
-                    {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
+                  <Fragment key={`${id}-${index}`}>
+                    {index > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
                     <button
                       className="crumb"
-                      onClick={() => onJump(pid)}
-                      aria-current={i === path.length - 1 ? "page" : undefined}
+                      onClick={() => onJump(id)}
+                      aria-current={index === pathItems.length - 1 ? "page" : undefined}
+                      aria-label={`Go to ${clue ?? receipt?.title ?? id}`}
                     >
-                      {r ? `${r.id}` : pid}
+                      {clue ?? receipt?.title ?? id}
                     </button>
                   </Fragment>
                 );
               })}
-              <span style={{ flex: 1 }} />
+              <span className="thread-path-spacer" />
               <button className="btn btn-ghost btn-sm" onClick={onBack} disabled={path.length === 0}>
                 ← Back
               </button>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={onReset}
-                disabled={path.length === 0}
-              >
+              <button className="btn btn-ghost btn-sm" onClick={onReset} disabled={path.length === 0}>
                 Reset
               </button>
-            </div>
+            </nav>
 
+            <div className="panel thread-evidence-panel">
+              <div className="t-label">Current receipt · evidence</div>
+              {current ? (
+                <>
+                  <div className="thread-receipt-heading">
+                    <div>
+                      <h3 className="t-h3">{current.title}</h3>
+                      {current.subtitle && <div className="row-sub">{current.subtitle}</div>}
+                    </div>
+                    <span className="t-data thread-receipt-id">{current.id}</span>
+                  </div>
+
+                  {currentIndex === 0 && (
+                    <div className="thread-context-box">
+                      <div className="t-label">Chapter context</div>
+                      <p className="t-body">{chapter.hook}</p>
+                      <p className="t-body thread-motif">{chapter.motif}</p>
+                    </div>
+                  )}
+
+                  <div className="thread-evidence-meta">
+                    {currentEdge ? (
+                      <span className="badge" data-strength={currentEdge.strength}>
+                        {labelForRule(currentEdge.rule)} · {currentEdge.strength}
+                      </span>
+                    ) : currentIndex === 0 && !isIndependent ? (
+                      <span className="badge" data-strength="direct">Trail head · starting point</span>
+                    ) : isIndependent ? (
+                      <span className="badge" data-strength="tentative">Selected independently</span>
+                    ) : null}
+                    <button className="btn btn-ghost btn-sm" onClick={() => onInspect(current.id)}>
+                      Full record →
+                    </button>
+                  </div>
+
+                  {currentEdge && (
+                    <div className="why-box" data-strength={currentEdge.strength}>
+                      <div className="t-label">Why this connection?</div>
+                      <p className="t-body thread-evidence-copy">{currentEdge.evidence}</p>
+                      <p className="t-body thread-reading-copy">
+                        <strong>Reading:</strong> {currentEdge.meaning}
+                      </p>
+                      <p className="t-label thread-honesty-note">
+                        Evidence is observable. The reading is an interpretation.
+                      </p>
+                    </div>
+                  )}
+                  {isIndependent && (
+                    <p className="t-body thread-independent-note">
+                      This receipt was selected independently; no supported guided edge connects it to the prior path item.
+                    </p>
+                  )}
+
+                  <dl className="kv">
+                    <dt>Timestamp</dt>
+                    <dd className="t-data">{dateTimeLabel(current.ts)}</dd>
+                    {current.music && (
+                      <>
+                        <dt>Artist</dt>
+                        <dd>{current.music.artist || "—"}</dd>
+                        <dt>Album</dt>
+                        <dd>{current.music.album || "—"}</dd>
+                        <dt>Played</dt>
+                        <dd className="t-data">
+                          {durationLabel(current.music.msPlayed)}
+                          {current.music.skipped ? " · skipped" : ""}
+                        </dd>
+                        <dt>Platform</dt>
+                        <dd>{current.music.platform}</dd>
+                      </>
+                    )}
+                    {current.transaction && (
+                      <>
+                        <dt>Category</dt>
+                        <dd>{current.transaction.category}</dd>
+                        {current.transaction.subcategory && (
+                          <>
+                            <dt>Subcategory</dt>
+                            <dd>{current.transaction.subcategory}</dd>
+                          </>
+                        )}
+                        <dt>Amount</dt>
+                        <dd className="t-data">{fmtMoney(current.transaction.amount)}</dd>
+                        <dt>Mode</dt>
+                        <dd>{current.transaction.mode}</dd>
+                        {current.transaction.flow && (
+                          <>
+                            <dt>Flow</dt>
+                            <dd>{current.transaction.flow}</dd>
+                          </>
+                        )}
+                        {current.transaction.note && (
+                          <>
+                            <dt>Note</dt>
+                            <dd>{current.transaction.note}</dd>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </dl>
+
+                  {canAdvance && nextNode && (
+                    <div className="thread-next-step">
+                      <div className="t-label">Next supported connection</div>
+                      <button
+                        className="trail-node"
+                        onClick={() => onJump(nextNode.receiptId)}
+                        aria-label={`Advance to next clue: ${nextNode.clue}`}
+                      >
+                        <span className="trail-dot" aria-hidden="true" />
+                        <span>
+                          <span className="thread-next-title">{nextNode.clue}</span>
+                          <span className="thread-next-why">{nextNode.why}</span>
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                  {!canAdvance && !nextNode && (
+                    <p className="t-body thread-end-note">
+                      End of this thread. The curated trail has no further supported step from here.
+                    </p>
+                  )}
+                  {!canAdvance && nextNode && (
+                    <p className="t-body thread-end-note">
+                      The next clue is not available as a supported edge in this preview.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="t-body thread-end-note">No receipt found for {currentId}.</p>
+              )}
+            </div>
+          </div>
+
+          <details className="trail-disclosure">
+            <summary>
+              <span>Review all clues</span>
+              <span className="t-label">{nodes.length} guided moments</span>
+            </summary>
+            <p className="trail-disclosure-note">
+              This is the curated sequence for this chapter, not a claim that every possible branch is shown.
+            </p>
             <ul className="trail-list">
-              {nodes.map((n: TrailNode, i: number) => {
-                const r: Receipt | undefined = archive.byId.get(n.receiptId);
-                const isCur = n.receiptId === currentId;
-                const done = i < idx;
+              {nodes.map((node, index) => {
+                const receipt: Receipt | undefined = archive.byId.get(node.receiptId);
+                const isCurrent = node.receiptId === currentId;
+                const done = visitedNodeIds.has(node.receiptId) && !isCurrent;
                 return (
-                  <li key={n.receiptId}>
+                  <li key={trailNodeKey(node)}>
                     <button
                       className="trail-node"
-                      onClick={() => onJump(n.receiptId)}
-                      aria-current={isCur ? "true" : undefined}
-                      aria-label={`Clue ${i + 1}: ${n.clue}${isCur ? " (current)" : ""}`}
+                      onClick={() => onJump(node.receiptId)}
+                      aria-current={isCurrent ? "true" : undefined}
+                      aria-label={`Clue ${index + 1}: ${node.clue}${isCurrent ? " (current)" : ""}`}
                     >
                       <span className="trail-dot" aria-hidden="true" />
                       <span>
-                        <span
-                          className="t-label"
-                          style={{
-                            color: isCur
-                              ? "var(--teal-700)"
-                              : done
-                              ? "var(--text-subtle)"
-                              : "var(--text-subtle)",
-                          }}
-                        >
-                          Clue {String(i + 1).padStart(2, "0")}
-                          {isCur ? " · current" : done ? " · visited" : ""}
+                        <span className="t-label">
+                          Clue {String(index + 1).padStart(2, "0")}
+                          {isCurrent ? " · current" : done ? " · visited" : ""}
                         </span>
-                        <span
-                          style={{
-                            display: "block",
-                            fontFamily: "var(--font-display)",
-                            fontSize: "1.02rem",
-                            marginTop: "0.15rem",
-                          }}
-                        >
-                          {n.clue}
-                        </span>
-                        <span
-                          className="row-sub"
-                          style={{ display: "block", marginTop: "0.15rem" }}
-                        >
-                          {r ? `${r.id} · ${dateLabel(r.ts)} · ${r.title}` : n.receiptId}
+                        <span className="trail-clue-title">{node.clue}</span>
+                        <span className="row-sub trail-receipt-line">
+                          {receipt ? `${receipt.id} · ${dateLabel(receipt.ts)} · ${receipt.title}` : node.receiptId}
                         </span>
                       </span>
                     </button>
@@ -286,202 +380,12 @@ export function ThreadView({
                 );
               })}
             </ul>
-          </div>
-
-          {/* ---------------- evidence panel ---------------- */}
-          <div className="panel">
-            <div className="t-label">Evidence</div>
-            {current ? (
-              <>
-                <h3 className="t-h3" style={{ marginTop: "0.45rem" }}>
-                  {current.title}
-                </h3>
-                {current.subtitle && (
-                  <div className="row-sub" style={{ marginTop: "0.2rem" }}>
-                    {current.subtitle}
-                  </div>
-                )}
-
-                <div
-                  style={{
-                    marginTop: "1.1rem",
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "0.45rem",
-                    alignItems: "center",
-                  }}
-                >
-                  <span className="t-data" style={{ fontSize: "0.68rem", color: "var(--text-subtle)" }}>
-                    {current.id}
-                  </span>
-                  {currentEdge && (
-                    <span className="badge" data-strength={currentEdge.strength}>
-                      {labelForRule(currentEdge.rule)} · {currentEdge.strength}
-                    </span>
-                  )}
-                  {!currentEdge && idx === 0 && (
-                    <span className="badge" data-strength="direct">
-                      trail head · starting point
-                    </span>
-                  )}
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => onInspect(current.id)}
-                  >
-                    Full record →
-                  </button>
-                </div>
-
-                {currentEdge && (
-                  <div className="why-box" data-strength={currentEdge.strength}>
-                    <div className="t-label">Why this connection?</div>
-                    <p className="t-body" style={{ marginTop: "0.5rem" }}>
-                      {currentEdge.evidence}
-                    </p>
-                    <p
-                      className="t-body"
-                      style={{ marginTop: "0.6rem", color: "var(--text-muted)" }}
-                    >
-                      <strong style={{ color: "var(--ink-900)" }}>Reading:</strong>{" "}
-                      {currentEdge.meaning}
-                    </p>
-                    <p
-                      className="t-label"
-                      style={{ marginTop: "0.7rem", lineHeight: 1.5 }}
-                    >
-                      Evidence is observable. The reading is an interpretation.
-                    </p>
-                  </div>
-                )}
-
-                <dl className="kv">
-                  <dt>Timestamp</dt>
-                  <dd className="t-data">{dateTimeLabel(current.ts)}</dd>
-                  {current.music && (
-                    <>
-                      <dt>Artist</dt>
-                      <dd>{current.music.artist || "—"}</dd>
-                      <dt>Album</dt>
-                      <dd>{current.music.album || "—"}</dd>
-                      <dt>Played</dt>
-                      <dd className="t-data">
-                        {durationLabel(current.music.msPlayed)}
-                        {current.music.skipped ? " · skipped" : ""}
-                      </dd>
-                      <dt>Platform</dt>
-                      <dd>{current.music.platform}</dd>
-                    </>
-                  )}
-                  {current.transaction && (
-                    <>
-                      <dt>Category</dt>
-                      <dd>{current.transaction.category}</dd>
-                      {current.transaction.subcategory && (
-                        <>
-                          <dt>Subcategory</dt>
-                          <dd>{current.transaction.subcategory}</dd>
-                        </>
-                      )}
-                      <dt>Amount</dt>
-                      <dd className="t-data">
-                        {fmtMoney(current.transaction.amount)}
-                      </dd>
-                      <dt>Mode</dt>
-                      <dd>{current.transaction.mode}</dd>
-                      {current.transaction.flow && (
-                        <>
-                          <dt>Flow</dt>
-                          <dd>{current.transaction.flow}</dd>
-                        </>
-                      )}
-                      {current.transaction.note && (
-                        <>
-                          <dt>Note</dt>
-                          <dd>{current.transaction.note}</dd>
-                        </>
-                      )}
-                    </>
-                  )}
-                </dl>
-
-                {nextNode && (
-                  <div style={{ marginTop: "1.3rem" }}>
-                    <div className="t-label">Next supported connection</div>
-                    <button
-                      className="trail-node"
-                      style={{ marginTop: "0.55rem" }}
-                      onClick={() => onJump(nextNode.receiptId)}
-                      aria-label={`Advance to next clue: ${nextNode.clue}`}
-                    >
-                      <span className="trail-dot" aria-hidden="true" />
-                      <span>
-                        <span style={{ display: "block", fontSize: "0.92rem", fontWeight: 600 }}>
-                          {nextNode.clue}
-                        </span>
-                        <span
-                          style={{
-                            display: "block",
-                            marginTop: "0.25rem",
-                            fontSize: "0.82rem",
-                            color: "var(--text-muted)",
-                            lineHeight: 1.45,
-                          }}
-                        >
-                          {nextNode.why}
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-                )}
-                {!nextNode && (
-                  <p
-                    className="t-body"
-                    style={{
-                      marginTop: "1.3rem",
-                      color: "var(--text-muted)",
-                    }}
-                  >
-                    End of this thread. The data supports no further step from
-                    here — reset to walk another route.
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="t-body" style={{ marginTop: "0.6rem" }}>
-                No receipt found for {currentId}.
-              </p>
-            )}
-          </div>
+          </details>
         </div>
       </div>
     </section>
   );
 }
 
-function labelForRule(rule: Edge["rule"]): string {
-  switch (rule) {
-    case "same-artist":
-      return "Same artist";
-    case "same-album":
-      return "Same album";
-    case "same-platform":
-      return "Same device";
-    case "same-subcategory":
-      return "Same subcategory";
-    case "same-venue":
-      return "Same venue";
-    case "same-language-strand":
-      return "Shared language strand";
-    case "temporal+theme":
-      return "Close in time + shared theme";
-    case "co-occurrence":
-      return "Same chapter window";
-    case "device-shift":
-      return "Device change";
-    default:
-      return rule;
-  }
-}
-
-/* keep import used for tree-shaking clarity */
+/* Keep this named export available for older imports that used the data helper. */
 export { fmtMoney as _fmt };

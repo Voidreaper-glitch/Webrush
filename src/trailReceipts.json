@@ -16,7 +16,7 @@
       "reasonStart": "autoplay",
       "reasonEnd": "clickrow",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -37,7 +37,7 @@
       "reasonStart": "unknown",
       "reasonEnd": "trackdone",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -58,7 +58,7 @@
       "reasonStart": "clickrow",
       "reasonEnd": "endplay",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -79,7 +79,7 @@
       "reasonStart": "fwdbtn",
       "reasonEnd": "trackdone",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -100,7 +100,7 @@
       "reasonStart": "clickrow",
       "reasonEnd": "endplay",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -121,7 +121,7 @@
       "reasonStart": "fwdbtn",
       "reasonEnd": "fwdbtn",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -142,7 +142,7 @@
       "reasonStart": "clickrow",
       "reasonEnd": "endplay",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -163,7 +163,7 @@
       "reasonStart": "fwdbtn",
       "reasonEnd": "fwdbtn",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -184,7 +184,7 @@
       "reasonStart": "remote",
       "reasonEnd": "trackdone",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -205,7 +205,7 @@
       "reasonStart": "trackdone",
       "reasonEnd": "trackdone",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -226,7 +226,7 @@
       "reasonStart": "clickrow",
       "reasonEnd": "endplay",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -247,7 +247,7 @@
       "reasonStart": "trackdone",
       "reasonEnd": "fwdbtn",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -268,7 +268,7 @@
       "reasonStart": "trackdone",
       "reasonEnd": "trackdone",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -289,7 +289,7 @@
       "reasonStart": "trackdone",
       "reasonEnd": "trackdone",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },
@@ -310,7 +310,7 @@
       "reasonStart": "remote",
       "reasonEnd": "trackdone",
       "skipped": false,
-      "shuffle": false
+      "shuffle": null
     },
     "transaction": null
   },

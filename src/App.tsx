@@ -1,365 +1,135 @@
-/**
- * AFTERPRINT — application shell.
- *
- * Route-free navigation: a single page with three views switched by state.
- * Application state stays small — active view, active chapter, trail path,
- * search query, category filter, and the open receipt id. Every visible
- * count is derived from the archive, never stored twice.
- */
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ReceiptKind } from "./types";
+import { useCallback, useState } from "react";
+import type { Receipt, ReceiptKind } from "./types";
 import type { Archive } from "./data";
-import { getInitialArchive, loadArchive } from "./data";
+import { useArchive } from "./hooks/useArchive";
 import { ChapterAtlas } from "./components/ChapterAtlas";
 import { ThreadView } from "./components/ThreadView";
 import { Explorer } from "./components/Explorer";
 import { ReceiptModal } from "./components/ReceiptModal";
+import { PatternLens } from "./components/PatternLens";
 
 type View = "atlas" | "thread" | "explorer";
 
 export function App() {
-  const [archive, setArchive] = useState<Archive>(getInitialArchive);
-  const [isArchiveLoaded, setIsArchiveLoaded] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    loadArchive(archive.story)
-      .then((a) => {
-        if (alive) {
-          setArchive(a);
-          setIsArchiveLoaded(true);
-        }
-      })
-      .catch((e) => {
-        if (alive) {
-          console.warn("Background load warning:", e);
-        }
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
+  const { archive, status, retry } = useArchive();
   const [view, setView] = useState<View>("atlas");
   const [chapterId, setChapterId] = useState<string | null>(null);
   const [path, setPath] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [kinds, setKinds] = useState<ReceiptKind[]>([]);
   const [scope, setScope] = useState<string | null>(null);
+  const [artist, setArtist] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const closeReceipt = useCallback(() => setOpenId(null), []);
 
-  const pickChapter = useCallback(
-    (id: string) => {
-      setChapterId(id);
-      setPath([]);
-      setScope(id);
-      setView("thread");
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        document.getElementById("thread")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    },
-    []
-  );
-
-  const jump = useCallback(
-    (id: string) => {
-      setPath((p) => {
-        const at = p.indexOf(id);
-        if (at >= 0) return p.slice(0, at + 1);
-        return [...p, id];
-      });
-    },
-    []
-  );
-
-  const back = useCallback(() => {
-    setPath((p) => (p.length > 1 ? p.slice(0, -1) : p));
+  const navigate = useCallback((next: View) => {
+    setView(next);
+    requestAnimationFrame(() => {
+      const main = document.getElementById("main");
+      main?.focus({ preventScroll: true });
+      window.scrollTo({ top: 0, behavior: "instant" });
+    });
   }, []);
-
-  const reset = useCallback(() => {
+  const pickChapter = useCallback((id: string) => {
+    setChapterId(id);
     setPath([]);
+    setScope(id);
+    navigate("thread");
+  }, [navigate]);
+  const jump = useCallback((id: string) => {
+    setPath((current) => {
+      const at = current.indexOf(id);
+      return at >= 0 ? current.slice(0, at + 1) : [...current, id];
+    });
   }, []);
-
-  const openReceipt = useCallback((id: string) => {
-    setOpenId(id);
-  }, []);
-
-  const openRelated = useCallback(
-    (id: string) => {
-      setOpenId(id);
-    },
-    []
-  );
-
-  const open = openId && archive ? archive.byId.get(openId) : null;
+  const back = useCallback(() => setPath((current) => current.slice(0, -1)), []);
+  const reset = useCallback(() => setPath([]), []);
+  const exploreArtist = useCallback((name: string, chapter: string | null = null) => {
+    setArtist(name);
+    setScope(chapter);
+    setQuery("");
+    setKinds(["music"]);
+    setOpenId(null);
+    navigate("explorer");
+  }, [navigate]);
+  const exploreReceipt = useCallback((receipt: Receipt) => {
+    if (receipt.music) exploreArtist(receipt.music.artist);
+    else {
+      setArtist(null);
+      setScope(null);
+      setQuery(receipt.transaction?.subcategory || receipt.transaction?.category || "");
+      setKinds(["transaction"]);
+      setOpenId(null);
+      navigate("explorer");
+    }
+  }, [exploreArtist, navigate]);
+  const open = openId ? archive.byId.get(openId) : null;
 
   return (
     <div className="app">
       <div className="grain" aria-hidden="true" />
-
-      <a className="skip-link" href="#main">
-        Skip to content
-      </a>
-
+      <a className="skip-link" href="#main">Skip to content</a>
       <header className="chrome">
         <div className="shell chrome-inner">
-          <a
-            className="brand"
-            href="#main"
-            onClick={(e) => {
-              e.preventDefault();
-              setView("atlas");
-              document.getElementById("main")?.scrollIntoView({ behavior: "smooth" });
-            }}
-          >
+          <a className="brand" href="#main" onClick={(event) => { event.preventDefault(); navigate("atlas"); }}>
             <span className="brand-mark">AFTERPRINT</span>
             <span className="brand-sub">your life, between the lines</span>
           </a>
-
           <nav className="nav" aria-label="Primary">
-            <button
-              className="nav-btn"
-              aria-current={view === "atlas" ? "page" : undefined}
-              onClick={() => setView("atlas")}
-            >
-              Atlas
-            </button>
-            <button
-              className="nav-btn"
-              aria-current={view === "thread" ? "page" : undefined}
-              onClick={() => {
-                if (chapterId) setView("thread");
-                else setView("atlas");
-              }}
-              disabled={!chapterId}
-            >
-              Thread
-            </button>
-            <button
-              className="nav-btn"
-              aria-current={view === "explorer" ? "page" : undefined}
-              onClick={() => setView("explorer")}
-            >
-              Explorer
-            </button>
+            <button className="nav-btn" aria-current={view === "atlas" ? "page" : undefined} onClick={() => navigate("atlas")}>Atlas</button>
+            <button className="nav-btn" aria-current={view === "thread" ? "page" : undefined} onClick={() => chapterId ? navigate("thread") : pickChapter(archive.chapters[0].id)}>Thread</button>
+            <button className="nav-btn" aria-current={view === "explorer" ? "page" : undefined} onClick={() => navigate("explorer")}>Explorer</button>
           </nav>
         </div>
       </header>
-
-      <main id="main">
-        {view === "atlas" && (
-          <div className="view" key="atlas">
-            <Hero archive={archive} onPick={pickChapter} onExplore={() => setView("explorer")} />
-            <ChapterAtlas
-              archive={archive}
-              activeChapter={chapterId}
-              onPick={pickChapter}
-            />
-            <MethodNote archive={archive} />
-          </div>
-        )}
-
-        {view === "thread" && chapterId && (
-          <div className="view" key="thread">
-            <ThreadView
-              archive={archive}
-              chapterId={chapterId}
-              path={path}
-              onJump={jump}
-              onBack={back}
-              onReset={reset}
-              onInspect={openReceipt}
-            />
-          </div>
-        )}
-
-        {view === "explorer" && (
-          <div className="view" key="explorer">
-            <Explorer
-              archive={archive}
-              isArchiveLoaded={isArchiveLoaded}
-              query={query}
-              kinds={kinds}
-              chapterScope={scope}
-              openId={openId}
-              onQuery={setQuery}
-              onKinds={setKinds}
-              onScope={setScope}
-              onOpen={openReceipt}
-            />
-          </div>
-        )}
+      <main id="main" tabIndex={-1}>
+        {status === "error" && <div className="shell archive-notice" role="alert">
+          <div><strong>The full archive could not load.</strong><p>The curated story preview is still available. Full search needs a successful download.</p></div>
+          <button className="btn btn-sm" onClick={retry}>Retry archive download</button>
+        </div>}
+        {view === "atlas" && <div className="view">
+          <Hero archive={archive} onPick={pickChapter} onExplore={() => navigate("explorer")} />
+          <PatternLens archive={archive} ready={status === "ready"} onExplore={exploreArtist} />
+          <ChapterAtlas archive={archive} activeChapter={chapterId} onPick={pickChapter} onExploreArtist={exploreArtist} />
+          <section className="section hair-t method-section"><div className="shell">
+            <details className="method-note"><summary>How to read this archive</summary>
+              <p className="t-body">Chapters are curated interpretations of two supplied archives, not runtime AI. The files have no shared identity key: a cross-source coincidence does not establish that records describe the same person or that one event caused another.</p>
+              <p className="t-body">Source files: {archive.sources.spotify.file}; {archive.sources.household.file}. An additional multi-person transactions dataset is not included in this archive. Only music and household records are represented here.</p>
+              <p className="t-body">Every curated link exposes its evidence. Tentative links are labelled. A receipt without a curated link is not necessarily unrelated.</p>
+            </details>
+          </div></section>
+        </div>}
+        {view === "thread" && chapterId && <div className="view"><ThreadView archive={archive} chapterId={chapterId} path={path} onJump={jump} onBack={back} onReset={reset} onInspect={setOpenId} /></div>}
+        {view === "explorer" && <div className="view"><Explorer archive={archive} status={status} query={query} kinds={kinds} chapterScope={scope} artist={artist} openId={openId} onQuery={setQuery} onKinds={setKinds} onScope={setScope} onArtist={setArtist} onOpen={setOpenId} /></div>}
       </main>
-
-      <footer className="hair-t" style={{ padding: "2rem 0" }}>
-        <div className="shell" style={{ display: "grid", gap: "0.5rem" }}>
-          <div className="t-label">AFTERPRINT · frontend-only</div>
-          <p className="t-body" style={{ color: "var(--text-muted)" }}>
-            {archive.totals.spotify.toLocaleString()} listening receipts and{" "}
-            {archive.totals.household.toLocaleString()} household transactions,
-            normalized in the browser. No backend, no tracking, no invented data.
-          </p>
-        </div>
-      </footer>
-
-      {open && (
-        <ReceiptModal
-          receipt={open}
-          archive={archive}
-          onClose={() => setOpenId(null)}
-          onOpenRelated={openRelated}
-        />
-      )}
+      <footer className="hair-t app-footer"><div className="shell">
+        <div className="t-label">AFTERPRINT · frontend-only · curated, not generated</div>
+        <p className="t-body">{archive.totals.spotify.toLocaleString()} listening receipts · {archive.totals.household.toLocaleString()} household records. No backend or tracking.</p>
+      </div></footer>
+      {open && <ReceiptModal receipt={open} archive={archive} onClose={closeReceipt} onOpenRelated={setOpenId} onExplore={exploreReceipt} />}
     </div>
   );
 }
 
-function Hero({
-  archive,
-  onPick,
-  onExplore,
-}: {
-  archive: Archive;
-  onPick: (id: string) => void;
-  onExplore: () => void;
-}) {
-  const first = useMemo(() => {
-    return archive.byId.get("SP-000001") || archive.receipts.find((r) => r.source === "spotify");
-  }, [archive]);
-
-  return (
-    <section className="hero">
-      <div className="shell hero-grid">
-        <div>
-          <div className="hero-eyebrow">
-            <span className="t-label t-label-teal">Receipts Archive</span>
-            <span className="rule-dash" aria-hidden="true" />
-            <span className="t-label">
-              {archive.totals.all.toLocaleString()} records · 2013 — 2024
-            </span>
-          </div>
-          <h1 className="t-hero">
-            Your life,
-            <br />
-            between the lines.
-          </h1>
-          <p className="t-lead" style={{ marginTop: "1.1rem", maxWidth: "52ch" }}>
-            Two archives. One person. {archive.totals.spotify.toLocaleString()}{" "}
-            listening records and {archive.totals.household.toLocaleString()}{" "}
-            household transactions, read as chapters — not as a list. Every claim
-            below traces to a receipt ID you can open.
-          </p>
-          <div className="hero-cta">
-            <button className="btn" onClick={() => onPick(archive.chapters[0].id)}>
-              Enter the first chapter →
-            </button>
-            <button className="btn btn-ghost" onClick={onExplore}>
-              Browse the archive
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <div className="stat-rail">
-            <Stat
-              n={archive.totals.spotify.toLocaleString()}
-              k="Listening records"
-              kind="music"
-            />
-            <Stat
-              n={archive.totals.household.toLocaleString()}
-              k="Household transactions"
-              kind="money"
-            />
-            <Stat
-              n={String(archive.chapters.length)}
-              k="Evidence-backed chapters"
-              kind="meta"
-            />
-            <Stat
-              n={String(archive.edges.length)}
-              k="Supported connections"
-              kind="meta"
-            />
-          </div>
-
-          {first && (
-            <div className="specimen">
-              <div className="specimen-head">
-                <span className="t-label">The very first receipt</span>
-                <span className="t-data" style={{ fontSize: "0.62rem", color: "var(--text-subtle)" }}>
-                  {first.id}
-                </span>
-              </div>
-              <div className="specimen-body">
-                <div className="specimen-title">{first.title}</div>
-                <div className="row-sub" style={{ marginTop: "0.2rem" }}>
-                  {first.subtitle}
-                </div>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  style={{ marginTop: "0.85rem" }}
-                  onClick={() => onPick(archive.chapters[0].id)}
-                >
-                  See where it leads →
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+function Hero({ archive, onPick, onExplore }: { archive: Archive; onPick: (id: string) => void; onExplore: () => void }) {
+  return <section className="hero"><div className="shell hero-grid">
+    <div>
+      <div className="hero-eyebrow"><span className="t-label t-label-teal">An archive of small moments</span></div>
+      <h1 className="t-hero">Your life,<br />between the lines.</h1>
+      <p className="t-lead hero-intro">Songs repeat. Habits change. Follow the clues hiding inside two digital archives—and see the receipts behind every reading.</p>
+      <div className="hero-cta">
+        <button className="btn" onClick={() => onPick(archive.chapters[0].id)}>Explore the connections →</button>
+        <button className="btn btn-ghost" onClick={onExplore}>Browse the archive</button>
       </div>
-    </section>
-  );
-}
-
-function Stat({
-  n,
-  k,
-  kind = "meta",
-}: {
-  n: string;
-  k: string;
-  kind?: "music" | "money" | "meta";
-}) {
-  return (
-    <div className="stat-cell" data-kind={kind}>
-      <div className="stat-num">{n}</div>
-      <div className="stat-key t-label">{k}</div>
     </div>
-  );
+    <div className="stat-rail" aria-label="Archive overview">
+      <Stat value={archive.totals.all.toLocaleString()} label="Receipts" />
+      <Stat value="2013–24" label="Recorded years" />
+      <Stat value={String(archive.chapters.length)} label="Chapters" />
+      <Stat value={String(archive.edges.length)} label="Curated links" />
+    </div>
+  </div></section>;
 }
-
-function MethodNote({ archive }: { archive: Archive }) {
-  return (
-    <section className="section hair-t" id="method" aria-labelledby="method-h">
-      <div className="shell">
-        <div className="section-head">
-          <div className="eyebrow">
-            <span className="eyebrow-num">04</span>
-            <span className="rule-dash" aria-hidden="true" />
-            <span className="t-label">Observation, not invention</span>
-          </div>
-          <h2 id="method-h" className="t-h2">
-            What the data justifies, and what it does not.
-          </h2>
-          <p className="t-lead">
-            The archive is two supplied files. {archive.sources.spotify.file} and{" "}
-            {archive.sources.household.file}. A third supplied file was excluded
-            from the archive: it describes 1,330 different card holders, not one
-            person, and cannot be reconciled into a single life.
-          </p>
-          <p className="t-body" style={{ marginTop: "0.8rem" }}>
-            Connections are drawn only from explicit shared detail — the same
-            artist, the same device, the same subscription, or dates that fall
-            in the same window as another meaningful shared fact. Generic words
-            are never treated as matches. Where a link is plausible rather than
-            certain it is labelled <em>tentative</em>, and every interpretation
-            is separated from the evidence that produced it.
-          </p>
-        </div>
-      </div>
-    </section>
-  );
+function Stat({ value, label }: { value: string; label: string }) {
+  return <div className="stat-cell"><div className="stat-num">{value}</div><div className="stat-key t-label">{label}</div></div>;
 }

@@ -1,7 +1,7 @@
 /**
  * AFTERPRINT — data archive types.
  *
- * One receipt = one row from one of the two supplied one-person sources.
+ * One receipt = one row from one of the two included source archives.
  * Source IDs are the 1-based row numbers of the original CSVs, so any claim
  * in the UI can be traced back to an exact line in the supplied data.
  *
@@ -41,7 +41,7 @@ export interface MusicDetail {
   reasonStart: string;
   reasonEnd: string;
   skipped: boolean;
-  shuffle: boolean;
+  shuffle: boolean | null;
 }
 
 export interface TransactionDetail {
@@ -109,6 +109,7 @@ export type EdgeStrength = "direct" | "tentative";
 
 /** A relationship between two receipts, with its evidence attached. */
 export interface Edge {
+  id?: string;
   a: string;
   b: string;
   rule: EdgeRule;

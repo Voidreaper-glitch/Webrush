@@ -1,7 +1,7 @@
 /**
  * AFTERPRINT — archive loader.
  *
- * Reads the two one-person sources as a single normalized archive. Nothing is
+ * Reads the two included sources into a single normalized archive. Nothing is
  * invented here: every field comes from the supplied CSVs, missing values fall
  * back to explicit empty strings or null, and no row is ever dropped.
  *
@@ -19,6 +19,7 @@ import type {
   TransactionDetail,
 } from "./types";
 import storyData from "./storyData.json";
+import { decodeTimestamps } from "./archive-codec";
 import trailReceiptsMap from "./trailReceipts.json";
 
 export const ARCHIVE_URL = "./data/receipts.json";
@@ -26,7 +27,7 @@ export const STORY_URL = "./data/story.json";
 
 export function getInitialArchive(): Archive {
   const byId = new Map<string, Receipt>();
-  const seedReceipts = Object.values(trailReceiptsMap) as unknown as Receipt[];
+  const seedReceipts = (Object.values(trailReceiptsMap) as unknown as Receipt[]).sort((a, b) => b.ts - a.ts);
   for (const r of seedReceipts) byId.set(r.id, r);
 
   const story = storyData as unknown as Story;
@@ -43,14 +44,14 @@ export function getInitialArchive(): Archive {
     },
     sources: {
       spotify: {
-        file: "spotify_listening_history.csv",
+        file: "archive/spotify_history.csv",
         rows: 149860,
-        idPrefix: "SP-",
+        idPrefix: "SP",
       },
       household: {
-        file: "Household_monthly_expenditure_dataset.csv",
+        file: "archive (1)/Daily Household Transactions.csv",
         rows: 2461,
-        idPrefix: "HH-",
+        idPrefix: "HH",
       },
     },
   };
@@ -90,7 +91,7 @@ function musicDetail(
     reasonStart: rs >= 0 ? d.reason_start[rs] : "unknown",
     reasonEnd: re >= 0 ? d.reason_end[re] : "unknown",
     skipped: sk === 1,
-    shuffle: false,
+    shuffle: null,
   };
 }
 
@@ -133,13 +134,7 @@ export function expandBundle(bundle: ArchiveBundle): Receipt[] {
   // the absolute values in one pass. This is lossless.
   const tsCol = sp.ts as number[];
   const isDelta = !!bundle.meta.encoding?.tsDelta;
-  const absTs: number[] = new Array(n);
-  let acc = 0;
-  for (let i = 0; i < n; i++) {
-    acc = i === 0 && !isDelta ? tsCol[0] : acc + tsCol[i];
-    if (i === 0) acc = tsCol[0];
-    absTs[i] = acc;
-  }
+  const absTs = decodeTimestamps(tsCol, isDelta);
 
   let ptr = 0;
   for (let i = 0; i < n; i++) {
@@ -224,14 +219,14 @@ export async function loadStory(): Promise<Story> {
   return (await res.json()) as Story;
 }
 
-export async function loadArchive(cachedStory?: Story): Promise<Archive> {
+export async function loadArchive(cachedStory?: Story, signal?: AbortSignal): Promise<Archive> {
   const story = cachedStory || (storyData as unknown as Story);
-  const bundleRes = await fetch(ARCHIVE_URL);
+  const bundleRes = await fetch(ARCHIVE_URL, { signal });
   if (!bundleRes.ok) throw new Error(`archive load failed: ${bundleRes.status}`);
 
   const bundle = (await bundleRes.json()) as ArchiveBundle;
 
-  const receipts = expandBundle(bundle);
+  const receipts = expandBundle(bundle).sort((a, b) => b.ts - a.ts);
   const byId = new Map<string, Receipt>();
   for (const r of receipts) byId.set(r.id, r);
 
