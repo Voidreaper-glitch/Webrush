@@ -1,0 +1,25 @@
+{
+  "name": "afterprint",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "AFTERPRINT — Your life, between the lines. A frontend-only interactive archive of digital receipts.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.63.4",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^7.0.0"
+  }
+}

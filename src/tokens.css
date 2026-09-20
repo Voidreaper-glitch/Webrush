@@ -1,0 +1,117 @@
+/**
+ * AFTERPRINT — design tokens.
+ *
+ * Palette thesis: an editorial personal archive printed on warm stock.
+ * Ivory paper, ink type, one deep teal as the accent. Colour is semantic:
+ * teal encodes music, ochre encodes money. Nothing decorative.
+ *
+ * Every text/background pair below is measured against WCAG AA on the surface
+ * it actually sits on — ink-400 is the lightest text allowed, ink-300 is
+ * decorative only (rules, ticks), never text.
+ */
+
+:root {
+  /* --- paper: warm, slightly green-grey, like uncoated stock --- */
+  --paper-000: #fdfcf9;
+  --paper-100: #f7f5ef;
+  --paper-200: #f0ede5;
+  --paper-300: #e7e3d9;
+  --paper-400: #dbd6c9;
+  --paper-500: #c9c3b3;
+
+  /* --- ink --- */
+  --ink-900: #16130f;
+  --ink-800: #241f19;
+  --ink-700: #35302a;
+  --ink-600: #4d4740;
+  --ink-500: #6a635a;
+  --ink-400: #857d72;
+  --ink-300: #a49c8f; /* decorative only */
+
+  /* --- accent: deep teal --- */
+  --teal-950: #072019;
+  --teal-900: #0b332c;
+  --teal-800: #10544a;
+  --teal-700: #14705f;
+  --teal-600: #198a76;
+  --teal-500: #22a288;
+  --teal-400: #4dbd9f;
+  --teal-100: #d8ece5;
+  --teal-050: #eaf5f1;
+
+  /* --- category hues. music = teal, money = ochre --- */
+  --cat-music: #14705f;
+  --cat-music-bg: #eaf5f1;
+  --cat-music-bd: #b6d9cf;
+  --cat-money: #8a5a12;
+  --cat-money-bg: #faf3e4;
+  --cat-money-bd: #e2cd9f;
+
+  /* --- semantics --- */
+  --direct: #14705f;
+  --direct-bg: #eaf5f1;
+  --direct-bd: #b6d9cf;
+  --tentative: #8a5a12;
+  --tentative-bg: #faf3e4;
+  --tentative-bd: #e2cd9f;
+
+  /* --- surfaces --- */
+  --stock: var(--paper-100);
+  --stock-raised: var(--paper-000);
+  --stock-sunk: var(--paper-200);
+  --stock-deep: var(--paper-300);
+
+  /* --- rules: ink on paper at low alpha, never a flat grey box --- */
+  --rule-hair: rgba(22, 19, 15, 0.06);
+  --rule: rgba(22, 19, 15, 0.12);
+  --rule-strong: rgba(22, 19, 15, 0.24);
+  --rule-ink: rgba(22, 19, 15, 0.55);
+
+  /* --- text roles --- */
+  --text-headline: var(--ink-900);
+  --text-body: var(--ink-800);
+  --text-muted: var(--ink-500);
+  --text-subtle: var(--ink-400);
+  --text-accent: var(--teal-700);
+
+  /* --- rhythm --- */
+  --shell: 1320px;
+  --gutter: clamp(1.15rem, 4.2vw, 3.25rem);
+  --chrome: 64px;
+
+  /* vertical scale derived from display leading */
+  --lead: 4rem;
+  --step-1: calc(var(--lead) * 0.25);
+  --step-2: calc(var(--lead) * 0.5);
+  --step-3: calc(var(--lead) * 0.75);
+  --step-4: var(--lead);
+  --step-6: calc(var(--lead) * 1.5);
+
+  /* --- depth: tinted, layered. Never a flat black drop shadow. --- */
+  --shadow-sm: 0 1px 2px rgba(38, 30, 20, 0.05),
+    0 2px 6px -2px rgba(38, 30, 20, 0.06);
+  --shadow-md: 0 2px 4px rgba(38, 30, 20, 0.04),
+    0 12px 28px -12px rgba(38, 30, 20, 0.16);
+  --shadow-lg: 0 4px 8px rgba(38, 30, 20, 0.04),
+    0 28px 60px -24px rgba(38, 30, 20, 0.22);
+  --shadow-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --shadow-press: inset 0 1px 3px rgba(38, 30, 20, 0.09);
+
+  /* --- z scale: nothing invents its own --- */
+  --z-base: 1;
+  --z-pin: 10;
+  --z-chrome: 60;
+  --z-sheet: 70;
+  --z-grain: 90;
+
+  /* --- motion --- */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --dur-fast: 0.14s;
+  --dur: 0.32s;
+  --dur-slow: 0.7s;
+
+  /* --- focus --- */
+  --focus: 0 0 0 3px rgba(25, 138, 118, 0.32);
+}
