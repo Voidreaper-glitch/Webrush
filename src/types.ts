@@ -58,6 +58,13 @@ export interface TransactionDetail {
 export interface ArchiveBundle {
   meta: {
     sources: Record<string, { file: string; rows: number; idPrefix: string }>;
+    /** Present in the packed format; describes the column encodings. */
+    encoding?: {
+      uriDict: string;
+      tsDelta: string;
+      tsBase: number;
+      msNote: string;
+    };
   };
   dicts: Record<string, string[]>;
   spotify: Record<string, number[] | string[]>;

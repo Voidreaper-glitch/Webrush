@@ -90,13 +90,26 @@ export function expandBundle(bundle: ArchiveBundle): Receipt[] {
   const d = bundle.dicts;
   const sp = bundle.spotify;
   const hh = bundle.household;
+  const hasUriDict = Array.isArray(d.uri) && (d.uri as string[]).length > 0;
 
   const n = (sp.i as string[]).length;
   const out: Receipt[] = new Array(n + (hh.dt as number[]).length);
 
+  // Timestamps are stored as a cumulative delta sequence when packed; rebuild
+  // the absolute values in one pass. This is lossless.
+  const tsCol = sp.ts as number[];
+  const isDelta = !!bundle.meta.encoding?.tsDelta;
+  const absTs: number[] = new Array(n);
+  let acc = 0;
+  for (let i = 0; i < n; i++) {
+    acc = i === 0 && !isDelta ? tsCol[0] : acc + tsCol[i];
+    if (i === 0) acc = tsCol[0];
+    absTs[i] = acc;
+  }
+
   let ptr = 0;
   for (let i = 0; i < n; i++) {
-    const ts = (sp.ts as number[])[i];
+    const ts = absTs[i];
     const a = (sp.a as number[])[i];
     const detail = musicDetail(
       d,
@@ -110,7 +123,11 @@ export function expandBundle(bundle: ArchiveBundle): Receipt[] {
       (sp.sk as number[])[i]
     );
     const id = `SP-${String(i + 1).padStart(6, "0")}`;
-    const searchText = [detail.track, detail.artist, detail.album, detail.platform]
+    const uriIdx = (sp.i as number[])[i];
+    const uri = hasUriDict && typeof uriIdx === "number"
+      ? (d.uri as string[])[uriIdx] ?? ""
+      : "";
+    const searchText = [detail.track, detail.artist, detail.album, detail.platform, uri]
       .filter(Boolean)
       .join(" ")
       .toLowerCase();
